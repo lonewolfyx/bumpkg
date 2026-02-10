@@ -13,17 +13,6 @@ const command = defineCommand({
     cleanup() {
         console.log('Cleanup')
     },
-    args: {
-        cwd: {
-            type: 'string',
-            description: 'Current working directory',
-            alias: 'c',
-            default: process.cwd(),
-        },
-    },
-    subCommands: {
-        build: () => import('./commands/build.ts').then(r => r.default),
-    },
     run({ args }) {
         console.log(args)
     },
