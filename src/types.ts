@@ -34,3 +34,31 @@ export interface IPnpmWorkspaceConfig {
     catalog?: Record<string, string>
     catalogs?: Record<string, Record<string, string>>
 }
+
+export interface INpmPackageRegistryMetaData {
+    'name': string
+    'dist-tags': Record<string, string>
+    'versions': Record<string, {
+        version: string
+        _npmVersion: string
+        _nodeVersion: string
+    }[]>
+    'time': Record<string, string>
+}
+
+export interface IRangeStats {
+    range: string
+    min: string | null
+    max: string | null
+    count: number
+}
+
+export interface IDistTags extends Record<string, string | undefined> {
+    latest?: string
+}
+
+export interface INpmSemverResult {
+    // subRange: IRangeStats[]
+    versions: string[]
+    version: string
+}
