@@ -59,9 +59,9 @@
         "jiti": "^2.6.1"
     },
     "devDependencies": {
-        "@antfu/eslint-config": "^7.3.0",
+        "@antfu/eslint-config": "^7.4.2",
         "@lonewolfyx/tsconfig": "^0.0.6",
-        "@types/node": "^25.2.1",
+        "@types/node": "^25.2.2",
         "eslint": "^10.0.0",
         "lint-staged": "^16.2.7",
         "picocolors": "^1.1.1",
