@@ -51,6 +51,7 @@
         "access": "public"
     },
     "dependencies": {
+        "@clack/prompts": "^1.0.0",
         "citty": "^0.2.0",
         "defu": "^6.1.4",
         "find-up": "^8.0.0",
