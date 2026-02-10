@@ -10,9 +10,6 @@ const command = defineCommand({
     setup() {
         console.log('Setup')
     },
-    cleanup() {
-        console.log('Cleanup')
-    },
     run({ args }) {
         console.log(args)
     },
