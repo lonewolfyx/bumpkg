@@ -1,4 +1,5 @@
 import { createMain, defineCommand } from 'citty'
+import { resolveConfig } from '@/config.ts'
 import { description, name, version } from '../package.json'
 
 const command = defineCommand({
@@ -7,11 +8,11 @@ const command = defineCommand({
         version,
         description,
     },
-    setup() {
-        console.log('Setup')
-    },
-    run({ args }) {
-        console.log(args)
+    async run({ args }) {
+        console.log('📦 Resolving project configuration...')
+        const config = await resolveConfig()
+
+        console.log(config)
     },
 })
 
