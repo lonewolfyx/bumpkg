@@ -28,30 +28,33 @@ class SemverMatcher {
     }
 }
 
-export const getNpmSemVerCalculator = async (packageName: string, rangeInput: string): Promise<INpmSemverResult> => {
+export const getNpmSemVerCalculator = async (packageName: string, versionInput: string): Promise<INpmSemverResult> => {
     const data = await getNpmRegistryMetaData(packageName)
     const allVersions = Object.keys(data.versions)
     const distTags = data['dist-tags']
 
     const latestTagVersion = distTags.latest ?? null
 
-    const targetTagVersion = distTags[rangeInput]
+    const targetTagVersion = distTags[versionInput]
     if (targetTagVersion) {
         return {
-            versions: [targetTagVersion],
+            name: packageName,
+            currentVersion: versionInput,
             version: targetTagVersion,
+            versions: [targetTagVersion],
+            latest: latestTagVersion,
         }
     }
 
-    if (!semver.validRange(rangeInput)) {
+    if (!semver.validRange(versionInput)) {
         throw new Error('Invalid semver range')
     }
 
-    const maxLimit: string | null = (latestTagVersion && semver.satisfies(latestTagVersion, rangeInput))
+    const maxLimit: string | null = (latestTagVersion && semver.satisfies(latestTagVersion, versionInput))
         ? latestTagVersion
         : null
 
-    const subRangeStats: IRangeStats[] = rangeInput.split('||').map(r => ({
+    const subRangeStats: IRangeStats[] = versionInput.split('||').map(r => ({
         range: r.trim(),
         min: null,
         max: null,
@@ -59,7 +62,7 @@ export const getNpmSemVerCalculator = async (packageName: string, rangeInput: st
     }))
 
     const matchedVersions = allVersions.filter((version) => {
-        const isGlobalMatch = SemverMatcher.isSatisfied(version, rangeInput, distTags, maxLimit)
+        const isGlobalMatch = SemverMatcher.isSatisfied(version, versionInput, distTags, maxLimit)
 
         if (isGlobalMatch) {
             for (const stats of subRangeStats) {
@@ -72,9 +75,11 @@ export const getNpmSemVerCalculator = async (packageName: string, rangeInput: st
     })
 
     return {
-        // subRange: subRangeStats,
-        versions: matchedVersions,
+        name: packageName,
+        currentVersion: versionInput,
         version: matchedVersions.at(-1) || '',
+        versions: matchedVersions,
+        latest: latestTagVersion,
     }
 }
 

@@ -59,6 +59,9 @@ export interface IDistTags extends Record<string, string | undefined> {
 
 export interface INpmSemverResult {
     // subRange: IRangeStats[]
-    versions: string[]
+    name: string
+    currentVersion: string
     version: string
+    versions: string[]
+    latest: string | null
 }
