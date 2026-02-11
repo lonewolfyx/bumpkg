@@ -1,0 +1,12 @@
+{
+    "name": "@repo/pkgmode",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "express": "^4.1.0",
+        "typescript": "^0.22.6",
+        "vite": "^2.1.0",
+        "vue": "^3.4.0",
+        "vue-router": "^4.0.2"
+    }
+}

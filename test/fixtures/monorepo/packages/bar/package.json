@@ -1,0 +1,7 @@
+{
+    "name": "@repo/example-bar",
+    "private": true,
+    "dependencies": {
+        "lodash": "^4.13.19"
+    }
+}
