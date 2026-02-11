@@ -1,6 +1,6 @@
-import type { IDistTags, INpmPackageRegistryMetaData, INpmSemverResult, IRangeStats } from '@/types.ts'
-import { ofetch } from 'ofetch'
+import type { IDistTags, INpmSemverResult, IRangeStats } from '@/types.ts'
 import semver from 'semver'
+import { getNpmRegistryMetaData } from '@/npm.ts'
 
 class SemverMatcher {
     static isSatisfied(
@@ -29,7 +29,7 @@ class SemverMatcher {
 }
 
 export const getNpmSemVerCalculator = async (packageName: string, rangeInput: string): Promise<INpmSemverResult> => {
-    const data = await ofetch<INpmPackageRegistryMetaData>(`https://registry.npmjs.org/${packageName.replace(/\//g, '%2f')}`)
+    const data = await getNpmRegistryMetaData(packageName)
     const allVersions = Object.keys(data.versions)
     const distTags = data['dist-tags']
 

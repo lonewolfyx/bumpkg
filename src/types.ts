@@ -40,10 +40,10 @@ export interface INpmPackageRegistryMetaData {
     'dist-tags': Record<string, string>
     'versions': Record<string, {
         version: string
-        _npmVersion: string
-        _nodeVersion: string
+        dependencies: Record<string, string>
+        peerDependencies: Record<string, string>
     }[]>
-    'time': Record<string, string>
+    'modified': string
 }
 
 export interface IRangeStats {
