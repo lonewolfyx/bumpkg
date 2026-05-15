@@ -1,5 +1,15 @@
-import type { CheckUpdateResult, CliDeps, ProjectConfig, UpdateCandidate } from '@/types'
-import { parseCliArgs, renderUpdateTable, runCli } from '@/cli'
+import type { CheckUpdateResult, ProjectConfig, UpdateCandidate } from '@/types'
+import { confirm } from '@clack/prompts'
+import * as checkModule from '@/check'
+import { renderUpdateTable, runCliWithOptions } from '@/cli'
+import * as configModule from '@/config'
+import * as lockModule from '@/lock'
+import * as updateModule from '@/update'
+
+vi.mock('@clack/prompts', () => ({
+    confirm: vi.fn(),
+    isCancel: vi.fn(() => false),
+}))
 
 function createProjectConfig(): ProjectConfig {
     return {
@@ -32,34 +42,43 @@ function createCandidate(): UpdateCandidate {
     }
 }
 
-function createDeps(result: CheckUpdateResult, output: string[] = []): CliDeps {
+function setupCliMocks(result: CheckUpdateResult, output: string[] = []) {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const checkSpy = vi.spyOn(checkModule, 'checkUpdateDependencies').mockResolvedValue(result)
+    const updateSpy = vi.spyOn(updateModule, 'applyDependencyUpdates').mockResolvedValue({
+        updatedFiles: [{ filePath: '/project/package.json', updatedDependencies: ['lodash'] }],
+        updatedCount: 1,
+    })
+    const cleanupSpy = vi.spyOn(lockModule, 'cleanupLockFiles').mockResolvedValue({
+        removed: ['/project/pnpm-lock.yaml'],
+        missing: [],
+    })
+    const resolveSpy = vi.spyOn(configModule, 'resolveConfig').mockResolvedValue(createProjectConfig())
+    vi.mocked(confirm).mockResolvedValue(true)
+
     return {
-        resolveConfig: vi.fn().mockResolvedValue(createProjectConfig()),
-        checkUpdateDependencies: vi.fn().mockResolvedValue(result),
-        confirmUpdates: vi.fn().mockResolvedValue(true),
-        applyDependencyUpdates: vi.fn().mockResolvedValue({
-            updatedFiles: [{ filePath: '/project/package.json', updatedDependencies: ['lodash'] }],
-            updatedCount: 1,
-        }),
-        cleanupLockFiles: vi.fn().mockResolvedValue({
-            removed: ['/project/pnpm-lock.yaml'],
-            missing: [],
-        }),
-        stdout: {
-            log: (message: string) => output.push(message),
-        },
-        stderr: {
-            error: vi.fn(),
-        },
+        checkSpy,
+        cleanupSpy,
+        errorSpy,
+        logSpy,
+        resolveSpy,
+        updateSpy,
     }
 }
 
 describe('cli helpers', () => {
-    test('parses --cwd and --major arguments', () => {
-        expect(parseCliArgs(['--cwd', '/tmp/demo', '--major'])).toEqual({
-            cwd: '/tmp/demo',
-            major: true,
-        })
+    afterEach(() => {
+        vi.restoreAllMocks()
+    })
+
+    test('passes --cwd through to config resolution', async () => {
+        const output: string[] = []
+        const mocks = setupCliMocks({ candidates: [], errors: [] }, output)
+
+        await runCliWithOptions({ c: '', cwd: '/tmp/demo', major: false, _: [''] })
+
+        expect(mocks.resolveSpy).toHaveBeenCalledWith('/tmp/demo')
     })
 
     test('renders the fixed table headers', () => {
@@ -70,9 +89,9 @@ describe('cli helpers', () => {
 
     test('prints a clear message when there are no updates', async () => {
         const output: string[] = []
-        const deps = createDeps({ candidates: [], errors: [] }, output)
+        setupCliMocks({ candidates: [], errors: [] }, output)
 
-        await runCli([], deps)
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
 
         expect(output).toEqual(['No updatable dependencies found.'])
     })
@@ -80,7 +99,7 @@ describe('cli helpers', () => {
     test('prints check errors instead of pretending there are no updates', async () => {
         const output: string[] = []
         const errors: string[] = []
-        const deps = createDeps({
+        const mocks = setupCliMocks({
             candidates: [],
             errors: [{
                 name: 'lodash',
@@ -93,12 +112,9 @@ describe('cli helpers', () => {
                 },
             }],
         }, output)
+        mocks.errorSpy.mockImplementation((message: string) => errors.push(message))
 
-        deps.stderr = {
-            error: (message: string) => errors.push(message),
-        }
-
-        await runCli([], deps)
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
 
         expect(output).toEqual([])
         expect(errors).toEqual([
@@ -109,34 +125,35 @@ describe('cli helpers', () => {
 
     test('passes the major flag into dependency checks', async () => {
         const output: string[] = []
-        const deps = createDeps({ candidates: [], errors: [] }, output)
+        const mocks = setupCliMocks({ candidates: [], errors: [] }, output)
 
-        await runCli(['--major'], deps)
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
 
-        expect(deps.checkUpdateDependencies).toHaveBeenCalledWith(expect.anything(), {
+        expect(mocks.checkSpy).toHaveBeenCalledWith(expect.anything(), {
             includeMajor: true,
+            fetchPackageMetadata: expect.any(Function),
         })
     })
 
     test('stops when the user cancels', async () => {
         const output: string[] = []
-        const deps = createDeps({ candidates: [createCandidate()], errors: [] }, output)
-        deps.confirmUpdates = vi.fn().mockResolvedValue(false)
+        const mocks = setupCliMocks({ candidates: [createCandidate()], errors: [] }, output)
+        vi.mocked(confirm).mockResolvedValue(false)
 
-        await runCli([], deps)
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
 
         expect(output.at(-1)).toBe('Update cancelled.')
-        expect(deps.applyDependencyUpdates).not.toHaveBeenCalled()
+        expect(mocks.updateSpy).not.toHaveBeenCalled()
     })
 
     test('runs the update flow after confirmation', async () => {
         const output: string[] = []
-        const deps = createDeps({ candidates: [createCandidate()], errors: [] }, output)
+        const mocks = setupCliMocks({ candidates: [createCandidate()], errors: [] }, output)
 
-        await runCli([], deps)
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
 
-        expect(deps.applyDependencyUpdates).toHaveBeenCalled()
-        expect(deps.cleanupLockFiles).toHaveBeenCalledWith('/project')
+        expect(mocks.updateSpy).toHaveBeenCalled()
+        expect(mocks.cleanupSpy).toHaveBeenCalledWith('/project')
         expect(output.at(-1)).toContain('Removed lock files:')
     })
 })
