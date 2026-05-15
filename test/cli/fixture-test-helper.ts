@@ -1,12 +1,17 @@
-import type { CliDeps, RegistryPackageMetadata } from '@/types'
+import type { RegistryPackageMetadata } from '@/types'
 import { access, cp, readFile } from 'node:fs/promises'
 import { basename, dirname, join, relative } from 'node:path'
+import { confirm } from '@clack/prompts'
 import { checkUpdateDependencies } from '@/check'
-import { runCli } from '@/cli'
+import { runCliWithOptions } from '@/cli'
 import { resolveConfig } from '@/config'
-import { cleanupLockFiles } from '@/lock'
-import { applyDependencyUpdates } from '@/update'
+import * as npmModule from '@/npm'
 import { createTempDir, removeTempDir } from '../helpers'
+
+vi.mock('@clack/prompts', () => ({
+    confirm: vi.fn(),
+    isCancel: vi.fn(() => false),
+}))
 
 export interface FixtureScenario {
     fixtureEntryPath: string
@@ -74,23 +79,6 @@ export function createMetadataLoader(metadata: FixtureScenario['metadata']) {
     })
 }
 
-export function createRuntime(fetchPackageMetadata: ReturnType<typeof createMetadataLoader>, output: string[]): CliDeps {
-    return {
-        resolveConfig,
-        checkUpdateDependencies: (config, options) => checkUpdateDependencies(config, {
-            ...options,
-            fetchPackageMetadata,
-        }),
-        confirmUpdates: vi.fn().mockResolvedValue(true),
-        applyDependencyUpdates,
-        cleanupLockFiles,
-        stdout: {
-            log: (message: string) => output.push(message),
-        },
-        stderr: console,
-    }
-}
-
 async function copyFixtureToTemp(fixtureEntryPath: string): Promise<{ fixtureRoot: string, tempDir: string }> {
     const relativeFixturePath = fixtureEntryPath.replace(/^\/+/, '')
     const fixtureRootRelative = dirname(relativeFixturePath)
@@ -147,8 +135,15 @@ export async function runFixtureScenario(scenario: FixtureScenario) {
             fetchPackageMetadata,
             includeMajor,
         })
+        vi.spyOn(npmModule, 'getPackageMetadata').mockImplementation(fetchPackageMetadata)
+        vi.mocked(confirm).mockResolvedValue(true)
+        vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
+        vi.spyOn(console, 'error').mockImplementation(() => {})
 
-        await runCli(['--cwd', dirname(fixtureEntryPath), ...(scenario.args ?? [])], createRuntime(fetchPackageMetadata, output))
+        await runCliWithOptions({
+            cwd: dirname(fixtureEntryPath),
+            major: scenario.args?.includes('--major') ?? false,
+        })
 
         const candidates = checkResult.candidates.map(candidate => ({
             catalogName: candidate.source.catalogName ?? null,

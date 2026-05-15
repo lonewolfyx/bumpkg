@@ -1,12 +1,15 @@
-import type { CliDeps, RegistryPackageMetadata } from '@/types'
+import type { RegistryPackageMetadata } from '@/types'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { checkUpdateDependencies } from '@/check'
-import { runCli } from '@/cli'
-import { resolveConfig } from '@/config'
-import { cleanupLockFiles } from '@/lock'
-import { applyDependencyUpdates } from '@/update'
+import { confirm } from '@clack/prompts'
+import { runCliWithOptions } from '@/cli'
+import * as npmModule from '@/npm'
 import { createTempDir, removeTempDir, writeJson, writeText } from '../helpers'
+
+vi.mock('@clack/prompts', () => ({
+    confirm: vi.fn(),
+    isCancel: vi.fn(() => false),
+}))
 
 function createMetadataMap(entries: Record<string, RegistryPackageMetadata>) {
     return vi.fn(async (packageName: string) => {
@@ -17,24 +20,11 @@ function createMetadataMap(entries: Record<string, RegistryPackageMetadata>) {
     })
 }
 
-function createRuntime(directory: string, fetchPackageMetadata: ReturnType<typeof createMetadataMap>, confirmed: boolean, output: string[]): CliDeps {
-    return {
-        resolveConfig,
-        checkUpdateDependencies: (config, options) => checkUpdateDependencies(config, {
-            ...options,
-            fetchPackageMetadata,
-        }),
-        confirmUpdates: vi.fn().mockResolvedValue(confirmed),
-        applyDependencyUpdates,
-        cleanupLockFiles,
-        stdout: {
-            log: (message: string) => output.push(message),
-        },
-        stderr: console,
-    }
-}
-
 describe('cli integration', () => {
+    afterEach(() => {
+        vi.restoreAllMocks()
+    })
+
     test('handles the no-update path', async () => {
         const directory = await createTempDir('bumpkg-cli-no-update')
         const output: string[] = []
@@ -46,14 +36,18 @@ describe('cli integration', () => {
                     lodash: '^1.0.0',
                 },
             })
-
-            await runCli(['--cwd', directory], createRuntime(directory, createMetadataMap({
+            vi.spyOn(npmModule, 'getPackageMetadata').mockImplementation(createMetadataMap({
                 lodash: {
                     name: 'lodash',
                     versions: ['1.0.0'],
                     distTags: { latest: '1.0.0' },
                 },
-            }), true, output))
+            }))
+            vi.mocked(confirm).mockResolvedValue(true)
+            vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
+            vi.spyOn(console, 'error').mockImplementation(() => {})
+
+            await runCliWithOptions({ cwd: directory, major: false })
 
             expect(output).toEqual(['No updatable dependencies found.'])
         }
@@ -75,14 +69,18 @@ describe('cli integration', () => {
                 },
             })
             await writeText(join(directory, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
-
-            await runCli(['--cwd', directory], createRuntime(directory, createMetadataMap({
+            vi.spyOn(npmModule, 'getPackageMetadata').mockImplementation(createMetadataMap({
                 lodash: {
                     name: 'lodash',
                     versions: ['1.0.0', '1.2.0'],
                     distTags: { latest: '1.2.0' },
                 },
-            }), true, output))
+            }))
+            vi.mocked(confirm).mockResolvedValue(true)
+            vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
+            vi.spyOn(console, 'error').mockImplementation(() => {})
+
+            await runCliWithOptions({ cwd: directory, major: false })
 
             expect(await readFile(packagePath, 'utf8')).toContain('"lodash": "^1.2.0"')
             expect(output.some(line => line.includes('Updated 1 dependencies'))).toBe(true)
@@ -103,14 +101,18 @@ describe('cli integration', () => {
                     vue: '^1.0.0',
                 },
             })
-
-            await runCli(['--cwd', directory, '--major'], createRuntime(directory, createMetadataMap({
+            vi.spyOn(npmModule, 'getPackageMetadata').mockImplementation(createMetadataMap({
                 vue: {
                     name: 'vue',
                     versions: ['1.0.0', '2.0.0'],
                     distTags: { latest: '2.0.0' },
                 },
-            }), true, []))
+            }))
+            vi.mocked(confirm).mockResolvedValue(true)
+            vi.spyOn(console, 'log').mockImplementation(() => {})
+            vi.spyOn(console, 'error').mockImplementation(() => {})
+
+            await runCliWithOptions({ cwd: directory, major: true })
 
             expect(await readFile(packagePath, 'utf8')).toContain('"vue": "^2.0.0"')
         }
@@ -130,14 +132,18 @@ describe('cli integration', () => {
                     lodash: '^1.0.0',
                 },
             })
-
-            await runCli(['--cwd', directory], createRuntime(directory, createMetadataMap({
+            vi.spyOn(npmModule, 'getPackageMetadata').mockImplementation(createMetadataMap({
                 lodash: {
                     name: 'lodash',
                     versions: ['1.0.0', '1.2.0'],
                     distTags: { latest: '1.2.0' },
                 },
-            }), false, []))
+            }))
+            vi.mocked(confirm).mockResolvedValue(false)
+            vi.spyOn(console, 'log').mockImplementation(() => {})
+            vi.spyOn(console, 'error').mockImplementation(() => {})
+
+            await runCliWithOptions({ cwd: directory, major: false })
 
             expect(await readFile(packagePath, 'utf8')).toContain('"lodash": "^1.0.0"')
         }

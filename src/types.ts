@@ -1,4 +1,12 @@
+import type { ParsedArgs } from 'citty'
+
 export type PackageJsonPath = string
+
+export type DeepWriteable<T> = {
+    -readonly [P in keyof T]: T[P] extends object ? DeepWriteable<T[P]> : T[P]
+}
+
+export type CommandArgs = ParsedArgs<DeepWriteable<typeof import('./args').args>>
 
 export type ManifestFormat = 'json' | 'yaml'
 
@@ -103,19 +111,4 @@ export interface ApplyUpdatesResult {
 export interface CleanupLockResult {
     removed: string[]
     missing: string[]
-}
-
-export interface CliOptions {
-    cwd: string
-    major: boolean
-}
-
-export interface CliDeps {
-    resolveConfig: (cwd: string) => Promise<ProjectConfig>
-    checkUpdateDependencies: (config: ProjectConfig, options: CheckUpdateOptions) => Promise<CheckUpdateResult>
-    confirmUpdates: () => Promise<boolean>
-    applyDependencyUpdates: (candidates: UpdateCandidate[], options: ApplyUpdatesOptions) => Promise<ApplyUpdatesResult>
-    cleanupLockFiles: (cwd: string) => Promise<CleanupLockResult>
-    stdout: Pick<Console, 'log'>
-    stderr: Pick<Console, 'error'>
 }

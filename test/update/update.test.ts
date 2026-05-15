@@ -227,10 +227,12 @@ describe('applyDependencyUpdates', () => {
                     catalogs: Record<string, Record<string, string>>
                 }
             }>(filePath)
+            const react18Catalog = manifest.workspaces.catalogs.react18
 
             expect(manifest.dependencies.lodash).toBe('^4.17.21')
             expect(manifest.workspaces.catalog.react).toBe('^18.3.0')
-            expect(manifest.workspaces.catalogs.react18['react-dom']).toBe('^18.3.0')
+            expect(react18Catalog).toBeDefined()
+            expect(react18Catalog?.['react-dom']).toBe('^18.3.0')
         }
         finally {
             await removeTempDir(directory)
