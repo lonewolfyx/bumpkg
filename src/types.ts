@@ -1,71 +1,121 @@
-import type { ReleaseType } from 'semver'
+export type PackageJsonPath = string
 
-export interface IPackageJson {
+export type ManifestFormat = 'json' | 'yaml'
+
+export type DependencyType = 'dependencies' | 'devDependencies' | 'optionalDependencies'
+
+export type CatalogDependencyType = 'catalog' | 'catalogs'
+
+export type DependencySource = DependencyType | CatalogDependencyType
+
+export type UpdateLevel = 'major' | 'minor' | 'patch'
+
+export interface PackageManifest {
+    name?: string
+    private?: boolean
+    packages?: string[]
+    workspaces?: string[] | WorkspaceConfig
     dependencies?: Record<string, string>
     devDependencies?: Record<string, string>
     optionalDependencies?: Record<string, string>
 }
 
-export type TCatalog = 'catalog' | 'catalogs'
-
-export interface ICatalogItem {
-    dependency: string
-    version: string
-    type: TCatalog
-    category: string
-}
-
-export interface IDependencies {
-    dependency: string
-    version: string
-}
-
-export interface IConfig {
-    cwd: string
-    npm: boolean
-    pnpm: boolean
-    monorepo: boolean
-    catalog: ICatalogItem[]
-    dependencies?: IDependencies[]
-    devDependencies?: IDependencies[]
-    optionalDependencies?: IDependencies[]
-}
-
-export interface IPnpmWorkspaceConfig {
+export interface WorkspaceConfig {
     packages?: string[]
     catalog?: Record<string, string>
     catalogs?: Record<string, Record<string, string>>
 }
 
-export interface INpmPackageRegistryMetaData {
-    'name': string
-    'dist-tags': Record<string, string>
-    'versions': Record<string, {
-        version: string
-        dependencies: Record<string, string>
-        peerDependencies: Record<string, string>
-    }[]>
-    'modified': string
+export interface DependencyLocation {
+    filePath: string
+    source: DependencySource
+    manifestFormat: ManifestFormat
+    catalogName?: string
 }
 
-export interface IRangeStats {
-    range: string
-    min: string | null
-    max: string | null
-    count: number
+export interface DependencyEntry extends DependencyLocation {
+    name: string
+    version: string
 }
 
-export interface IDistTags extends Record<string, string | undefined> {
-    latest?: string
+export interface ProjectConfig {
+    cwd: string
+    rootDir: string
+    rootPackagePath: PackageJsonPath
+    monorepo: boolean
+    packages: PackageJsonPath[]
+    dependencies: DependencyEntry[]
+    devDependencies: DependencyEntry[]
+    optionalDependencies: DependencyEntry[]
+    catalogDependencies: DependencyEntry[]
+    allDependencies: DependencyEntry[]
+    workspaceFilePath?: string
+    yarnConfigPath?: string
 }
 
-export type versionReleaseType = ReleaseType | 'same'
+export interface RegistryPackageMetadata {
+    name: string
+    versions: string[]
+    distTags: Record<string, string | undefined>
+}
 
-export interface INpmSemverResult {
-    // subRange: IRangeStats[]
+export interface CheckUpdateOptions {
+    includeMajor?: boolean
+    fetchPackageMetadata?: (packageName: string) => Promise<RegistryPackageMetadata>
+}
+
+export interface CheckUpdateError {
     name: string
     currentVersion: string
-    version: string
-    versions: string[]
-    latest: string | null
+    reason: string
+    source: DependencyLocation
+}
+
+export interface UpdateCandidate {
+    name: string
+    currentVersion: string
+    currentSpecifier: string
+    newVersion: string
+    nextSpecifier: string
+    updateLevel: UpdateLevel
+    source: DependencyLocation
+}
+
+export interface CheckUpdateResult {
+    candidates: UpdateCandidate[]
+    errors: CheckUpdateError[]
+}
+
+export interface ApplyUpdatesOptions {
+    includeMajor?: boolean
+}
+
+export interface UpdatedFileResult {
+    filePath: string
+    updatedDependencies: string[]
+}
+
+export interface ApplyUpdatesResult {
+    updatedFiles: UpdatedFileResult[]
+    updatedCount: number
+}
+
+export interface CleanupLockResult {
+    removed: string[]
+    missing: string[]
+}
+
+export interface CliOptions {
+    cwd: string
+    major: boolean
+}
+
+export interface CliDeps {
+    resolveConfig: (cwd: string) => Promise<ProjectConfig>
+    checkUpdateDependencies: (config: ProjectConfig, options: CheckUpdateOptions) => Promise<CheckUpdateResult>
+    confirmUpdates: () => Promise<boolean>
+    applyDependencyUpdates: (candidates: UpdateCandidate[], options: ApplyUpdatesOptions) => Promise<ApplyUpdatesResult>
+    cleanupLockFiles: (cwd: string) => Promise<CleanupLockResult>
+    stdout: Pick<Console, 'log'>
+    stderr: Pick<Console, 'error'>
 }

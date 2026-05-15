@@ -1,0 +1,99 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`package yml fixture > matches the fixture snapshot 1`] = `
+{
+  "annotatedStdout": "dependencyName | current_Version | new_Version | source               | catalogName | filePath    
+---------------|-----------------|-------------|----------------------|-------------|-------------
+@types/lodash  | ^4.14.0         | ^4.14.191   | devDependencies      | -           | package.yaml
+lodash         | ^4.13.19        | ^4.17.21    | dependencies         | -           | package.yaml
+multer         | ^0.1.8          | ^0.1.9      | optionalDependencies | -           | package.yaml
+react          | ^19.1.1         | ^19.2.0     | dependencies         | -           | package.yaml
+webpack        | ~5.101.3        | ~5.101.5    | devDependencies      | -           | package.yaml",
+  "args": [],
+  "candidates": [
+    {
+      "catalogName": null,
+      "currentSpecifier": "^4.14.0",
+      "filePath": "package.yaml",
+      "name": "@types/lodash",
+      "nextSpecifier": "^4.14.191",
+      "source": "devDependencies",
+      "updateLevel": "patch",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^4.13.19",
+      "filePath": "package.yaml",
+      "name": "lodash",
+      "nextSpecifier": "^4.17.21",
+      "source": "dependencies",
+      "updateLevel": "minor",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^0.1.8",
+      "filePath": "package.yaml",
+      "name": "multer",
+      "nextSpecifier": "^0.1.9",
+      "source": "optionalDependencies",
+      "updateLevel": "patch",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^19.1.1",
+      "filePath": "package.yaml",
+      "name": "react",
+      "nextSpecifier": "^19.2.0",
+      "source": "dependencies",
+      "updateLevel": "minor",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "~5.101.3",
+      "filePath": "package.yaml",
+      "name": "webpack",
+      "nextSpecifier": "~5.101.5",
+      "source": "devDependencies",
+      "updateLevel": "patch",
+    },
+  ],
+  "fixtureEntryPath": "/test/fixtures/package-yaml/package.yaml",
+  "removedLocks": {
+    "bun.lockb": true,
+    "package-lock.json": true,
+    "pnpm-lock.yaml": true,
+    "yarn.lock": true,
+  },
+  "stdout": [
+    "dependencyName | current_Version | new_Version
+---------------|-----------------|------------
+@types/lodash  | ^4.14.0         | ^4.14.191  
+lodash         | ^4.13.19        | ^4.17.21   
+multer         | ^0.1.8          | ^0.1.9     
+react          | ^19.1.1         | ^19.2.0    
+webpack        | ~5.101.3        | ~5.101.5   ",
+    "Updated 5 dependencies across 1 files.",
+    "No supported lock files found.",
+  ],
+  "trackedFiles": {
+    "package.yaml": "name: "@repo/package-yaml-example"
+version: 1.0.0
+description: Test package.yaml
+private: false
+dependencies:
+  express: 4.12.x
+  lodash: ^4.17.21
+  react: ^19.2.0
+devDependencies:
+  "@types/lodash": ^4.14.191
+  typescript: "3.5"
+  webpack: ~5.101.5
+peerDependencies:
+  react-dom: ^18.2.0
+optionalDependencies:
+  multer: ^0.1.9
+packageManager: pnpm@10.19.0
+",
+  },
+}
+`;
