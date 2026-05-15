@@ -1,3 +1,5 @@
+import type { ReleaseType } from 'semver'
+
 export interface IPackageJson {
     dependencies?: Record<string, string>
     devDependencies?: Record<string, string>
@@ -56,6 +58,8 @@ export interface IRangeStats {
 export interface IDistTags extends Record<string, string | undefined> {
     latest?: string
 }
+
+export type versionReleaseType = ReleaseType | 'same'
 
 export interface INpmSemverResult {
     // subRange: IRangeStats[]

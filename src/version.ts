@@ -2,6 +2,11 @@ import type { IDistTags, INpmSemverResult, IRangeStats } from '@/types.ts'
 import semver from 'semver'
 import { getNpmRegistryMetaData } from '@/npm.ts'
 
+export const compareCaretDiff = (before: string, after: string) => {
+    const releaseType = semver.diff(before, after)
+    return releaseType ?? 'same'
+}
+
 class SemverMatcher {
     static isSatisfied(
         version: string,
@@ -29,6 +34,7 @@ class SemverMatcher {
 }
 
 export const getNpmSemVerCalculator = async (packageName: string, versionInput: string): Promise<INpmSemverResult> => {
+    console.log(semver.clean(versionInput, { loose: true }))
     const data = await getNpmRegistryMetaData(packageName)
     const allVersions = Object.keys(data.versions)
     const distTags = data['dist-tags']
@@ -61,6 +67,8 @@ export const getNpmSemVerCalculator = async (packageName: string, versionInput: 
         count: 0,
     }))
 
+    console.log(subRangeStats)
+
     const matchedVersions = allVersions.filter((version) => {
         const isGlobalMatch = SemverMatcher.isSatisfied(version, versionInput, distTags, maxLimit)
 
@@ -74,10 +82,12 @@ export const getNpmSemVerCalculator = async (packageName: string, versionInput: 
         return isGlobalMatch
     })
 
+    const version = matchedVersions.at(-1) || versionInput
+
     return {
         name: packageName,
         currentVersion: versionInput,
-        version: matchedVersions.at(-1) || '',
+        version,
         versions: matchedVersions,
         latest: latestTagVersion,
     }
