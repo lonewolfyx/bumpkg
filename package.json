@@ -44,7 +44,7 @@
         "lint": "eslint . --ignore-pattern todo.md --ignore-pattern step --ignore-pattern deprecated_src --ignore-pattern dist --ignore-pattern test/fixtures",
         "lint:fix": "eslint . --fix --ignore-pattern todo.md --ignore-pattern step --ignore-pattern deprecated_src --ignore-pattern dist --ignore-pattern test/fixtures",
         "typecheck": "tsc --noEmit",
-        "test": "vitest",
+        "test": "vitest run",
         "prepublishOnly": "pnpm build",
         "prepare": "simple-git-hooks"
     },
