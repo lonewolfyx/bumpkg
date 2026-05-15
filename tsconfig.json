@@ -12,11 +12,19 @@
             ]
         },
         "resolveJsonModule": true,
+        "types": [
+            "node",
+            "vitest/globals"
+        ],
         "noUnusedLocals": false,
         "noUnusedParameters": false,
         "declarationMap": false
     },
     "exclude": [
+        "./bin/**/*.*",
+        "./deprecated_src/**/*.*",
+        "./dist/**/*.*",
+        "./step/**/*.*",
         "./test/fixtures/**/*.*"
     ]
 }

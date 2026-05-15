@@ -1,125 +1,119 @@
-import type { IDistTags, INpmSemverResult, IRangeStats } from '@/types.ts'
+import type { RegistryPackageMetadata, UpdateLevel } from './types'
 import semver from 'semver'
-import { getNpmRegistryMetaData } from '@/npm.ts'
+import { isSkippedRange, isSupportedRange } from './constant'
 
-export const compareCaretDiff = (before: string, after: string) => {
-    const releaseType = semver.diff(before, after)
-    return releaseType ?? 'same'
+export function stripVersionPrefix(specifier: string): string {
+    const value = specifier.trim()
+    if (value === '*')
+        return value
+    return value.replace(/^[~^]/, '')
 }
 
-class SemverMatcher {
-    static isSatisfied(
-        version: string,
-        range: string,
-        distTags: IDistTags,
-        maxAllowed: string | null,
-    ): boolean {
-        if (distTags[range] === version)
-            return true
+export function getCurrentVersionFromSpecifier(specifier: string): string | null {
+    if (specifier.trim() === '*')
+        return null
 
-        const isMatched = semver.satisfies(version, range)
+    return semver.valid(stripVersionPrefix(specifier)) ?? semver.clean(stripVersionPrefix(specifier))
+}
 
-        const isWithinBounds = !maxAllowed || semver.lte(version, maxAllowed)
-
-        return isMatched && isWithinBounds
-    }
-
-    static updateStats(stats: IRangeStats, version: string): void {
-        stats.count++
-        if (stats.min === null || semver.lt(version, stats.min))
-            stats.min = version
-        if (stats.max === null || semver.gt(version, stats.max))
-            stats.max = version
+export function normalizeUpdateLevel(diff: semver.ReleaseType | null): UpdateLevel | null {
+    switch (diff) {
+        case 'premajor':
+        case 'major':
+            return 'major'
+        case 'preminor':
+        case 'minor':
+            return 'minor'
+        case 'prepatch':
+        case 'patch':
+        case 'prerelease':
+            return 'patch'
+        default:
+            return null
     }
 }
 
-export const getNpmSemVerCalculator = async (packageName: string, versionInput: string): Promise<INpmSemverResult> => {
-    console.log(semver.clean(versionInput, { loose: true }))
-    const data = await getNpmRegistryMetaData(packageName)
-    const allVersions = Object.keys(data.versions)
-    const distTags = data['dist-tags']
+export function detectUpdateLevel(currentVersion: string, newVersion: string): UpdateLevel | null {
+    return normalizeUpdateLevel(semver.diff(currentVersion, newVersion))
+}
 
-    const latestTagVersion = distTags.latest ?? null
+export function getSortedStableVersions(versions: string[]): string[] {
+    return versions
+        .filter(version => semver.valid(version) && semver.prerelease(version) === null)
+        .sort(semver.compare)
+}
 
-    const targetTagVersion = distTags[versionInput]
-    if (targetTagVersion) {
+export function resolveLatestVersion(metadata: RegistryPackageMetadata): string | null {
+    const latest = metadata.distTags.latest
+    if (latest && semver.valid(latest) && semver.prerelease(latest) === null)
+        return latest
+
+    return getSortedStableVersions(metadata.versions).at(-1) ?? null
+}
+
+export function buildNextSpecifier(currentSpecifier: string, newVersion: string): string {
+    const trimmed = currentSpecifier.trim()
+
+    if (trimmed === '*')
+        return newVersion
+
+    if (trimmed.startsWith('^'))
+        return `^${newVersion}`
+
+    if (trimmed.startsWith('~'))
+        return `~${newVersion}`
+
+    return newVersion
+}
+
+export function shouldProcessSpecifier(specifier: string): boolean {
+    return isSupportedRange(specifier) && !isSkippedRange(specifier)
+}
+
+export function selectTargetVersion(
+    currentSpecifier: string,
+    metadata: RegistryPackageMetadata,
+    includeMajor: boolean,
+): { newVersion: string, updateLevel: UpdateLevel, nextSpecifier: string } | null {
+    if (!shouldProcessSpecifier(currentSpecifier))
+        return null
+
+    const latestVersion = resolveLatestVersion(metadata)
+    if (!latestVersion)
+        return null
+
+    if (currentSpecifier.trim() === '*') {
         return {
-            name: packageName,
-            currentVersion: versionInput,
-            version: targetTagVersion,
-            versions: [targetTagVersion],
-            latest: latestTagVersion,
+            newVersion: latestVersion,
+            updateLevel: detectUpdateLevel('0.0.0', latestVersion) ?? 'patch',
+            nextSpecifier: buildNextSpecifier(currentSpecifier, latestVersion),
         }
     }
 
-    if (!semver.validRange(versionInput)) {
-        throw new Error('Invalid semver range')
-    }
+    const currentVersion = getCurrentVersionFromSpecifier(currentSpecifier)
+    if (!currentVersion)
+        return null
 
-    const maxLimit: string | null = (latestTagVersion && semver.satisfies(latestTagVersion, versionInput))
-        ? latestTagVersion
-        : null
+    const stableVersions = getSortedStableVersions(metadata.versions)
+    const targetVersion = includeMajor
+        ? stableVersions.filter(version => semver.gt(version, currentVersion)).at(-1) ?? null
+        : stableVersions
+            .filter(version => semver.gt(version, currentVersion) && semver.major(version) === semver.major(currentVersion))
+            .at(-1) ?? null
 
-    const subRangeStats: IRangeStats[] = versionInput.split('||').map(r => ({
-        range: r.trim(),
-        min: null,
-        max: null,
-        count: 0,
-    }))
+    if (!targetVersion)
+        return null
 
-    console.log(subRangeStats)
+    const updateLevel = detectUpdateLevel(currentVersion, targetVersion)
+    if (!updateLevel)
+        return null
 
-    const matchedVersions = allVersions.filter((version) => {
-        const isGlobalMatch = SemverMatcher.isSatisfied(version, versionInput, distTags, maxLimit)
-
-        if (isGlobalMatch) {
-            for (const stats of subRangeStats) {
-                if (SemverMatcher.isSatisfied(version, stats.range, distTags, maxLimit)) {
-                    SemverMatcher.updateStats(stats, version)
-                }
-            }
-        }
-        return isGlobalMatch
-    })
-
-    const version = matchedVersions.at(-1) || versionInput
+    if (!includeMajor && updateLevel === 'major')
+        return null
 
     return {
-        name: packageName,
-        currentVersion: versionInput,
-        version,
-        versions: matchedVersions,
-        latest: latestTagVersion,
+        newVersion: targetVersion,
+        updateLevel,
+        nextSpecifier: buildNextSpecifier(currentSpecifier, targetVersion),
     }
-}
-
-function generateSummary(name: string, range: string, total: number, stats: IRangeStats[]): string[] {
-    if (total === 0)
-        return ['0 versions found. There are no versions matching your search']
-
-    let detail: string
-    if (total < 10) {
-        const vList = stats.reduce((acc: string[], s) => {
-            if (s.min)
-                acc.push(s.min)
-            if (s.max)
-                acc.push(s.max)
-            return acc
-        }, [])
-        detail = Array.from(new Set(vList)).join(', ')
-    }
-    else {
-        detail = stats
-            .filter(s => s.count > 0)
-            .map((s) => {
-                if (s.count === 1)
-                    return s.min
-                if (s.count === 2)
-                    return `${s.min}, ${s.max}`
-                return `from ${s.min} to ${s.max}`
-            })
-            .join(', ')
-    }
-
-    return [`${total} satisfying version${total > 1 ? 's' : ''} for ${name}, range ${range.replace('||', ' and ')}: ${detail}`]
 }

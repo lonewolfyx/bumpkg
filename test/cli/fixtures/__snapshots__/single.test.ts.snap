@@ -1,0 +1,98 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`single fixture > matches the fixture snapshot 1`] = `
+{
+  "annotatedStdout": "dependencyName  | current_Version | new_Version | source          | catalogName | filePath    
+----------------|-----------------|-------------|-----------------|-------------|-------------
+@types/lodash   | ^4.14.0         | ^4.14.191   | devDependencies | -           | package.json
+lodash          | ^4.13.19        | ^4.17.21    | dependencies    | -           | package.json
+multer          | ^0.1.8          | ^0.1.9      | dependencies    | -           | package.json
+react-bootstrap | ^0.22.6         | ^0.22.7     | dependencies    | -           | package.json
+webpack         | ~1.9.10         | ~1.12.0     | dependencies    | -           | package.json",
+  "args": [],
+  "candidates": [
+    {
+      "catalogName": null,
+      "currentSpecifier": "^4.14.0",
+      "filePath": "package.json",
+      "name": "@types/lodash",
+      "nextSpecifier": "^4.14.191",
+      "source": "devDependencies",
+      "updateLevel": "patch",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^4.13.19",
+      "filePath": "package.json",
+      "name": "lodash",
+      "nextSpecifier": "^4.17.21",
+      "source": "dependencies",
+      "updateLevel": "minor",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^0.1.8",
+      "filePath": "package.json",
+      "name": "multer",
+      "nextSpecifier": "^0.1.9",
+      "source": "dependencies",
+      "updateLevel": "patch",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^0.22.6",
+      "filePath": "package.json",
+      "name": "react-bootstrap",
+      "nextSpecifier": "^0.22.7",
+      "source": "dependencies",
+      "updateLevel": "patch",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "~1.9.10",
+      "filePath": "package.json",
+      "name": "webpack",
+      "nextSpecifier": "~1.12.0",
+      "source": "dependencies",
+      "updateLevel": "minor",
+    },
+  ],
+  "fixtureEntryPath": "/test/fixtures/single/package.json",
+  "removedLocks": {
+    "bun.lockb": true,
+    "package-lock.json": true,
+    "pnpm-lock.yaml": true,
+    "yarn.lock": true,
+  },
+  "stdout": [
+    "dependencyName  | current_Version | new_Version
+----------------|-----------------|------------
+@types/lodash   | ^4.14.0         | ^4.14.191  
+lodash          | ^4.13.19        | ^4.17.21   
+multer          | ^0.1.8          | ^0.1.9     
+react-bootstrap | ^0.22.6         | ^0.22.7    
+webpack         | ~1.9.10         | ~1.12.0    ",
+    "Updated 5 dependencies across 1 files.",
+    "No supported lock files found.",
+  ],
+  "trackedFiles": {
+    "package.json": "{
+    "name": "@repo/package1",
+    "private": true,
+    "dependencies": {
+        "axios": "git:axios/axios",
+        "express": "4.12.x",
+        "lodash": "^4.17.21",
+        "multer": "^0.1.9",
+        "react-bootstrap": "^0.22.7",
+        "sass": "npm:node-sass",
+        "webpack": "~1.12.0"
+    },
+    "devDependencies": {
+        "@types/lodash": "^4.14.191"
+    }
+}
+",
+  },
+}
+`;

@@ -1,0 +1,96 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`pnpm fixture > matches the fixture snapshot 1`] = `
+{
+  "annotatedStdout": "dependencyName | current_Version | new_Version | source       | catalogName | filePath    
+---------------|-----------------|-------------|--------------|-------------|-------------
+express        | ^4.1.0          | ^5.1.0      | dependencies | -           | package.json
+typescript     | ^0.22.6         | ^5.9.3      | dependencies | -           | package.json
+vite           | ^2.1.0          | ^7.1.9      | dependencies | -           | package.json
+vue            | ^3.4.0          | ^3.5.13     | dependencies | -           | package.json
+vue-router     | ^4.0.2          | ^4.5.1      | dependencies | -           | package.json",
+  "args": [
+    "--major",
+  ],
+  "candidates": [
+    {
+      "catalogName": null,
+      "currentSpecifier": "^4.1.0",
+      "filePath": "package.json",
+      "name": "express",
+      "nextSpecifier": "^5.1.0",
+      "source": "dependencies",
+      "updateLevel": "major",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^0.22.6",
+      "filePath": "package.json",
+      "name": "typescript",
+      "nextSpecifier": "^5.9.3",
+      "source": "dependencies",
+      "updateLevel": "major",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^2.1.0",
+      "filePath": "package.json",
+      "name": "vite",
+      "nextSpecifier": "^7.1.9",
+      "source": "dependencies",
+      "updateLevel": "major",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^3.4.0",
+      "filePath": "package.json",
+      "name": "vue",
+      "nextSpecifier": "^3.5.13",
+      "source": "dependencies",
+      "updateLevel": "minor",
+    },
+    {
+      "catalogName": null,
+      "currentSpecifier": "^4.0.2",
+      "filePath": "package.json",
+      "name": "vue-router",
+      "nextSpecifier": "^4.5.1",
+      "source": "dependencies",
+      "updateLevel": "minor",
+    },
+  ],
+  "fixtureEntryPath": "/test/fixtures/pkgmode/package.json",
+  "removedLocks": {
+    "bun.lockb": true,
+    "package-lock.json": true,
+    "pnpm-lock.yaml": true,
+    "yarn.lock": true,
+  },
+  "stdout": [
+    "dependencyName | current_Version | new_Version
+---------------|-----------------|------------
+express        | ^4.1.0          | ^5.1.0     
+typescript     | ^0.22.6         | ^5.9.3     
+vite           | ^2.1.0          | ^7.1.9     
+vue            | ^3.4.0          | ^3.5.13    
+vue-router     | ^4.0.2          | ^4.5.1     ",
+    "Updated 5 dependencies across 1 files.",
+    "No supported lock files found.",
+  ],
+  "trackedFiles": {
+    "package.json": "{
+    "name": "@repo/pkgmode",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "express": "^5.1.0",
+        "typescript": "^5.9.3",
+        "vite": "^7.1.9",
+        "vue": "^3.5.13",
+        "vue-router": "^4.5.1"
+    }
+}
+",
+  },
+}
+`;

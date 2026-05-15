@@ -28,7 +28,8 @@
         "updater"
     ],
     "exports": {
-        ".": "./dist/cli.mjs",
+        ".": "./dist/index.mjs",
+        "./cli": "./dist/cli.mjs",
         "./package.json": "./package.json"
     },
     "bin": {
@@ -40,8 +41,10 @@
     "scripts": {
         "dev": "tsdown --watch",
         "build": "tsdown",
-        "lint": "eslint",
-        "lint:fix": "eslint --fix",
+        "lint": "eslint . --ignore-pattern todo.md --ignore-pattern step --ignore-pattern deprecated_src --ignore-pattern dist --ignore-pattern test/fixtures",
+        "lint:fix": "eslint . --fix --ignore-pattern todo.md --ignore-pattern step --ignore-pattern deprecated_src --ignore-pattern dist --ignore-pattern test/fixtures",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest",
         "prepublishOnly": "pnpm build",
         "prepare": "simple-git-hooks"
     },
@@ -74,7 +77,8 @@
         "tsdown": "^0.20.3",
         "tsdown-preset": "^1.0.3",
         "tsx": "^4.21.0",
-        "typescript": "^5.9.3"
+        "typescript": "^5.9.3",
+        "vitest": "^4.0.18"
     },
     "simple-git-hooks": {
         "pre-commit": "npx lint-staged",
