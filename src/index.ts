@@ -1,5 +1,5 @@
 export * from './check'
-export * from './cli'
+export * from './cli-runner'
 export * from './config'
 export * from './constant'
 export * from './lock'

@@ -1,7 +1,7 @@
 import type { CheckUpdateResult, ProjectConfig, UpdateCandidate } from '@/types'
 import { confirm } from '@clack/prompts'
 import * as checkModule from '@/check'
-import { renderUpdateTable, runCliWithOptions } from '@/cli'
+import { renderUpdateTable, runCliWithOptions } from '@/cli-runner'
 import * as configModule from '@/config'
 import * as lockModule from '@/lock'
 import * as updateModule from '@/update'
@@ -91,7 +91,7 @@ describe('cli helpers', () => {
         const output: string[] = []
         setupCliMocks({ candidates: [], errors: [] }, output)
 
-        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: true, _: [''] })
 
         expect(output).toEqual(['No updatable dependencies found.'])
     })
@@ -114,7 +114,7 @@ describe('cli helpers', () => {
         }, output)
         mocks.errorSpy.mockImplementation((message: string) => errors.push(message))
 
-        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: true, _: [''] })
 
         expect(output).toEqual([])
         expect(errors).toEqual([
@@ -127,11 +127,12 @@ describe('cli helpers', () => {
         const output: string[] = []
         const mocks = setupCliMocks({ candidates: [], errors: [] }, output)
 
-        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: true, _: [''] })
 
         expect(mocks.checkSpy).toHaveBeenCalledWith(expect.anything(), {
             includeMajor: true,
             fetchPackageMetadata: expect.any(Function),
+            resolvePackageVersions: expect.any(Function),
         })
     })
 

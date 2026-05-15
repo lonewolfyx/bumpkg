@@ -162,6 +162,54 @@ describe('checkUpdateDependencies', () => {
         expect(fetchPackageMetadata).toHaveBeenCalledTimes(1)
     })
 
+    test('resolves version batches once for duplicate package and range lookups', async () => {
+        const resolvePackageVersions = vi.fn().mockResolvedValue([
+            {
+                name: 'shared',
+                specifier: '>=1.0.0<2.0.0',
+                version: '1.1.0',
+            },
+        ])
+
+        const result = await checkUpdateDependencies(
+            createProjectConfig([
+                createEntry('shared', '^1.0.0'),
+                createEntry('shared', '^1.0.0', 'devDependencies'),
+            ]),
+            { resolvePackageVersions },
+        )
+
+        expect(resolvePackageVersions).toHaveBeenCalledTimes(1)
+        expect(resolvePackageVersions).toHaveBeenCalledWith([
+            {
+                name: 'shared',
+                specifier: '>=1.0.0<2.0.0',
+            },
+        ])
+        expect(result.candidates).toHaveLength(2)
+    })
+
+    test('uses latest lookup when major updates are enabled', async () => {
+        const result = await checkUpdateDependencies(
+            createProjectConfig([createEntry('vue', '^1.0.0')]),
+            {
+                includeMajor: true,
+                resolvePackageVersions: vi.fn().mockResolvedValue([
+                    {
+                        name: 'vue',
+                        specifier: '*',
+                        version: '2.0.0',
+                    },
+                ]),
+            },
+        )
+
+        expect(result.candidates[0]).toEqual(expect.objectContaining({
+            updateLevel: 'major',
+            nextSpecifier: '^2.0.0',
+        }))
+    })
+
     test('collects registry errors with stable output', async () => {
         const result = await checkUpdateDependencies(
             createProjectConfig([createEntry('broken', '^1.0.0')]),

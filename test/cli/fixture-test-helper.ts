@@ -2,10 +2,10 @@ import type { RegistryPackageMetadata } from '@/types'
 import { access, cp, readFile } from 'node:fs/promises'
 import { basename, dirname, join, relative } from 'node:path'
 import { confirm } from '@clack/prompts'
+import semver from 'semver'
 import { checkUpdateDependencies } from '@/check'
-import { runCliWithOptions } from '@/cli'
+import { runCliWithOptions } from '@/cli-runner'
 import { resolveConfig } from '@/config'
-import * as npmModule from '@/npm'
 import { createTempDir, removeTempDir } from '../helpers'
 
 vi.mock('@clack/prompts', () => ({
@@ -79,6 +79,30 @@ export function createMetadataLoader(metadata: FixtureScenario['metadata']) {
     })
 }
 
+export function createVersionResolutionLoader(metadata: FixtureScenario['metadata']) {
+    return vi.fn(async (queries: readonly { name: string, specifier: string }[]) => {
+        return queries.map(({ name, specifier }) => {
+            const result = metadata[name]
+            if (!result)
+                throw new Error(`Missing fixture metadata for ${name}`)
+
+            const stableVersions = result.versions
+                .filter(version => semver.valid(version) && semver.prerelease(version) === null)
+                .sort(semver.compare)
+            const normalizedSpecifier = specifier.replace(/(?<=\d)(?=[<>])/g, ' ')
+            const version = specifier === '*'
+                ? result.distTags.latest ?? stableVersions.at(-1) ?? null
+                : stableVersions.filter(version => semver.satisfies(version, normalizedSpecifier)).at(-1) ?? null
+
+            return {
+                name,
+                specifier,
+                version,
+            }
+        })
+    })
+}
+
 async function copyFixtureToTemp(fixtureEntryPath: string): Promise<{ fixtureRoot: string, tempDir: string }> {
     const relativeFixturePath = fixtureEntryPath.replace(/^\/+/, '')
     const fixtureRootRelative = dirname(relativeFixturePath)
@@ -122,6 +146,7 @@ async function detectRemovedLocks(rootDir: string): Promise<Record<string, boole
 export async function runFixtureScenario(scenario: FixtureScenario) {
     const output: string[] = []
     const fetchPackageMetadata = createMetadataLoader(scenario.metadata)
+    const resolvePackageVersions = createVersionResolutionLoader(scenario.metadata)
     const { fixtureRoot, tempDir } = await copyFixtureToTemp(scenario.fixtureEntryPath)
     const fixtureEntryPath = join(fixtureRoot, basename(scenario.fixtureEntryPath))
     const includeMajor = scenario.args?.includes('--major') ?? false
@@ -133,17 +158,25 @@ export async function runFixtureScenario(scenario: FixtureScenario) {
         const config = await resolveConfig(dirname(fixtureEntryPath))
         const checkResult = await checkUpdateDependencies(config, {
             fetchPackageMetadata,
+            resolvePackageVersions,
             includeMajor,
         })
-        vi.spyOn(npmModule, 'getPackageMetadata').mockImplementation(fetchPackageMetadata)
         vi.mocked(confirm).mockResolvedValue(true)
         vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
         vi.spyOn(console, 'error').mockImplementation(() => {})
 
-        await runCliWithOptions({
-            cwd: dirname(fixtureEntryPath),
-            major: scenario.args?.includes('--major') ?? false,
-        })
+        await runCliWithOptions(
+            {
+                c: '',
+                cwd: dirname(fixtureEntryPath),
+                major: scenario.args?.includes('--major') ?? false,
+                _: [''],
+            },
+            {
+                fetchPackageMetadata,
+                resolvePackageVersions,
+            },
+        )
 
         const candidates = checkResult.candidates.map(candidate => ({
             catalogName: candidate.source.catalogName ?? null,
