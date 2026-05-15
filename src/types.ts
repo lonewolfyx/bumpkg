@@ -67,8 +67,18 @@ export interface RegistryPackageMetadata {
     distTags: Record<string, string | undefined>
 }
 
+export interface PackageVersionQuery {
+    name: string
+    specifier: string
+}
+
+export interface PackageVersionResolution extends PackageVersionQuery {
+    version: string | null
+}
+
 export interface CheckUpdateOptions {
     includeMajor?: boolean
+    resolvePackageVersions?: (queries: readonly PackageVersionQuery[]) => Promise<PackageVersionResolution[]>
     fetchPackageMetadata?: (packageName: string) => Promise<RegistryPackageMetadata>
 }
 

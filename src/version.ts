@@ -66,6 +66,14 @@ export function buildNextSpecifier(currentSpecifier: string, newVersion: string)
     return newVersion
 }
 
+export function buildSameMajorRangeSpecifier(specifier: string): string | null {
+    const currentVersion = getCurrentVersionFromSpecifier(specifier)
+    if (!currentVersion)
+        return null
+
+    return `>=${currentVersion}<${semver.major(currentVersion) + 1}.0.0`
+}
+
 export function shouldProcessSpecifier(specifier: string): boolean {
     return isSupportedRange(specifier) && !isSkippedRange(specifier)
 }
