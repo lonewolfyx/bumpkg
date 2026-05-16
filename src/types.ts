@@ -49,6 +49,7 @@ export interface DependencyEntry extends DependencyLocation {
 export interface ProjectConfig {
     cwd: string
     rootDir: string
+    registryUrl: string
     rootPackagePath: PackageJsonPath
     monorepo: boolean
     packages: PackageJsonPath[]
@@ -78,8 +79,8 @@ export interface PackageVersionResolution extends PackageVersionQuery {
 
 export interface CheckUpdateOptions {
     includeMajor?: boolean
-    resolvePackageVersions?: (queries: readonly PackageVersionQuery[]) => Promise<PackageVersionResolution[]>
-    fetchPackageMetadata?: (packageName: string) => Promise<RegistryPackageMetadata>
+    resolvePackageVersions?: (queries: readonly PackageVersionQuery[], registryUrl?: string, rootDir?: string) => Promise<PackageVersionResolution[]>
+    fetchPackageMetadata?: (packageName: string, registryUrl?: string, rootDir?: string) => Promise<RegistryPackageMetadata>
 }
 
 export interface CheckUpdateError {
@@ -125,4 +126,17 @@ export interface CleanupLockResult {
         filePath: string
         reason: string
     }>
+}
+
+export interface VersionCacheEntry {
+    name: string
+    fetchedAt: string
+    versions: string[]
+    distTags: Record<string, string | undefined>
+}
+
+export interface VersionCacheFile {
+    registryUrl: string
+    updatedAt: string
+    packages: Record<string, VersionCacheEntry>
 }

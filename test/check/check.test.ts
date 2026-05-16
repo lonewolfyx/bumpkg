@@ -5,6 +5,7 @@ function createProjectConfig(entries: DependencyEntry[]): ProjectConfig {
     return {
         cwd: '/project',
         rootDir: '/project',
+        registryUrl: 'https://registry.npmjs.org/',
         rootPackagePath: '/project/package.json',
         monorepo: false,
         packages: ['/project/package.json'],
@@ -203,7 +204,7 @@ describe('checkUpdateDependencies', () => {
                 name: 'shared',
                 specifier: '>=1.0.0 <2.0.0',
             },
-        ])
+        ], 'https://registry.npmjs.org/', '/project')
         expect(result.candidates).toHaveLength(2)
     })
 

@@ -1,10 +1,16 @@
+import { access } from 'node:fs/promises'
 import { join } from 'node:path'
+import { ofetch } from 'ofetch'
 import { extractCatalogEntries, resolveConfig } from '@/config'
 import { createTempDir, removeTempDir, writeJson, writeText } from '../helpers'
 
 const fixturesDir = join(process.cwd(), 'test', 'fixtures')
 
 describe('resolveConfig', () => {
+    afterEach(() => {
+        vi.clearAllMocks()
+    })
+
     test('resolves a single package project', async () => {
         const cwd = join(fixturesDir, 'single')
         const config = await resolveConfig(cwd)
@@ -172,6 +178,35 @@ describe('resolveConfig', () => {
 
         try {
             await expect(resolveConfig(directory)).rejects.toThrow(/Unable to locate package manifest/)
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
+
+    test('detects the fastest registry when no override exists', async () => {
+        const directory = await createTempDir('bumpkg-config-registry')
+
+        try {
+            await writeJson(join(directory, 'package.json'), {
+                name: 'demo',
+                dependencies: {
+                    react: '^18.2.0',
+                },
+            })
+
+            const fetchSpy = vi.mocked(ofetch).mockImplementation(async (url) => {
+                const requestUrl = typeof url === 'string' ? url : url.toString()
+                if (requestUrl.startsWith('https://registry.npmmirror.com/'))
+                    return {}
+                throw new Error('unreachable')
+            })
+
+            const config = await resolveConfig(directory)
+
+            expect(config.registryUrl).toBe('https://registry.npmmirror.com/')
+            expect(fetchSpy).toHaveBeenCalledTimes(3)
+            await expect(access(join(directory, 'node_modules/.bumpkg/registry.json'))).rejects.toThrow()
         }
         finally {
             await removeTempDir(directory)
