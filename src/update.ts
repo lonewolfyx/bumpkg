@@ -6,7 +6,7 @@ import type {
     UpdatedFileResult,
     WorkspaceConfig,
 } from './types'
-import { readProjectManifest, writeProjectManifest } from './config'
+import { readProjectManifest, writeProjectManifest } from './package/manifest'
 import { isWildcardSpecifier } from './utils'
 
 function canApplyCandidate(candidate: UpdateCandidate, includeMajor: boolean): boolean {
