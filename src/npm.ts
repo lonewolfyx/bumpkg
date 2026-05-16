@@ -9,6 +9,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ofetch } from 'ofetch'
 import semver from 'semver'
+import { DEFAULT_REGISTRY_URL } from './constant'
+import { normalizeRegistryUrl, toPrettyJson } from './utils'
+import { getSortedStableVersions, resolveLatestVersion } from './version'
 
 interface NpmRegistryResponse {
     'name'?: string
@@ -16,34 +19,14 @@ interface NpmRegistryResponse {
     'dist-tags'?: Record<string, string | undefined>
 }
 
-const DEFAULT_REGISTRY_URL = 'https://registry.npmjs.org/'
 const REGISTRY_REQUEST_TIMEOUT_MS = 2500
 const REGISTRY_REQUEST_CONCURRENCY = 24
 const VERSION_CACHE_DIR = join('node_modules', '.bumpkg')
 const VERSION_CACHE_FILE_NAME = 'version.json'
 const VERSION_CACHE_TTL_MS = 1000 * 60 * 60
 
-function normalizeRegistryUrl(registryUrl: string): string {
-    return registryUrl.endsWith('/') ? registryUrl : `${registryUrl}/`
-}
-
 function getVersionCachePath(rootDir: string): string {
     return join(rootDir, VERSION_CACHE_DIR, VERSION_CACHE_FILE_NAME)
-}
-
-function getRegistryRequestTimeoutMs(): number {
-    const configured = Number.parseInt(process.env.BUMPKG_NPM_REGISTRY_TIMEOUT_MS || '', 10)
-    return Number.isFinite(configured) && configured > 0 ? configured : REGISTRY_REQUEST_TIMEOUT_MS
-}
-
-function getRegistryRequestConcurrency(): number {
-    const configured = Number.parseInt(process.env.BUMPKG_REGISTRY_REQUEST_CONCURRENCY || '', 10)
-    return Number.isFinite(configured) && configured > 0 ? configured : REGISTRY_REQUEST_CONCURRENCY
-}
-
-function getVersionCacheTtlMs(): number {
-    const configured = Number.parseInt(process.env.BUMPKG_VERSION_CACHE_TTL_MS || '', 10)
-    return Number.isFinite(configured) && configured >= 0 ? configured : VERSION_CACHE_TTL_MS
 }
 
 async function mapWithConcurrency<T, R>(
@@ -51,7 +34,8 @@ async function mapWithConcurrency<T, R>(
     concurrency: number,
     worker: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
-    const results = Array.from({ length: items.length })
+    const results: R[] = []
+    results.length = items.length
     let nextIndex = 0
 
     async function runWorker(): Promise<void> {
@@ -97,7 +81,7 @@ async function writeVersionCache(rootDir: string, cache: VersionCacheFile): Prom
     await mkdir(cacheDir, { recursive: true })
     await writeFile(
         getVersionCachePath(rootDir),
-        `${JSON.stringify(cache, null, 4)}\n`,
+        toPrettyJson(cache),
         'utf8',
     )
 }
@@ -107,25 +91,17 @@ function isVersionCacheEntryFresh(entry: VersionCacheEntry): boolean {
     if (Number.isNaN(fetchedAt))
         return false
 
-    return Date.now() - fetchedAt <= getVersionCacheTtlMs()
+    return Date.now() - fetchedAt <= VERSION_CACHE_TTL_MS
 }
 
 function resolveVersionFromMetadata(
     query: PackageVersionQuery,
     metadata: RegistryPackageMetadata,
 ): string | null {
-    const stableVersions = metadata.versions
-        .filter(version => semver.valid(version) && semver.prerelease(version) === null)
-        .sort(semver.compare)
+    if (query.specifier === '*')
+        return resolveLatestVersion(metadata)
 
-    if (query.specifier === '*') {
-        const latest = metadata.distTags.latest
-        if (latest && semver.valid(latest) && semver.prerelease(latest) === null)
-            return latest
-
-        return stableVersions.at(-1) ?? null
-    }
-
+    const stableVersions = getSortedStableVersions(metadata.versions)
     return stableVersions.filter(version => semver.satisfies(version, query.specifier)).at(-1) ?? null
 }
 
@@ -154,7 +130,7 @@ export async function getPackageMetadata(
             'accept': 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*',
         },
         retry: 0,
-        timeout: getRegistryRequestTimeoutMs(),
+        timeout: REGISTRY_REQUEST_TIMEOUT_MS,
     })
 
     const metadata = {
@@ -220,7 +196,7 @@ export async function resolvePackageVersions(
 
     const metadataEntries = await mapWithConcurrency(
         missingPackageNames,
-        getRegistryRequestConcurrency(),
+        REGISTRY_REQUEST_CONCURRENCY,
         async packageName => [packageName, await getPackageMetadata(packageName, normalizedRegistryUrl)] as const,
     )
     const metadataCache = new Map<string, RegistryPackageMetadata>([

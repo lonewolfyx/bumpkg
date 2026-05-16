@@ -9,6 +9,7 @@ import type {
     UpdateCandidate,
 } from './types'
 import { getNpmRegistryMetaData, resolvePackageVersions } from './npm'
+import { isWildcardSpecifier, sortUpdateCandidates, toDependencyLocation } from './utils'
 import {
     buildNextSpecifier,
     buildSameMajorRangeSpecifier,
@@ -37,12 +38,7 @@ export function createUpdateCandidate(
         newVersion: selection.newVersion,
         nextSpecifier: selection.nextSpecifier,
         updateLevel: selection.updateLevel,
-        source: {
-            filePath: entry.filePath,
-            source: entry.source,
-            manifestFormat: entry.manifestFormat,
-            catalogName: entry.catalogName,
-        },
+        source: toDependencyLocation(entry),
     }
 }
 
@@ -51,7 +47,7 @@ function toQueryKey(name: string, specifier: string): string {
 }
 
 function getResolutionSpecifier(entry: DependencyEntry, includeMajor: boolean): string {
-    if (includeMajor || entry.version.trim() === '*')
+    if (includeMajor || isWildcardSpecifier(entry.version))
         return '*'
 
     return buildSameMajorRangeSpecifier(entry.version) ?? entry.version.trim()
@@ -65,7 +61,7 @@ function createUpdateCandidateFromResolution(
     if (!newVersion)
         return null
 
-    if (entry.version.trim() === '*') {
+    if (isWildcardSpecifier(entry.version)) {
         return {
             name: entry.name,
             currentVersion: entry.version,
@@ -73,12 +69,7 @@ function createUpdateCandidateFromResolution(
             newVersion,
             nextSpecifier: buildNextSpecifier(entry.version, newVersion),
             updateLevel: detectUpdateLevel('0.0.0', newVersion) ?? 'patch',
-            source: {
-                filePath: entry.filePath,
-                source: entry.source,
-                manifestFormat: entry.manifestFormat,
-                catalogName: entry.catalogName,
-            },
+            source: toDependencyLocation(entry),
         }
     }
 
@@ -97,12 +88,7 @@ function createUpdateCandidateFromResolution(
         newVersion,
         nextSpecifier: buildNextSpecifier(entry.version, newVersion),
         updateLevel,
-        source: {
-            filePath: entry.filePath,
-            source: entry.source,
-            manifestFormat: entry.manifestFormat,
-            catalogName: entry.catalogName,
-        },
+        source: toDependencyLocation(entry),
     }
 }
 
@@ -138,12 +124,7 @@ async function checkUpdateDependenciesWithResolvedVersions(
             candidates.push(candidate)
     }
 
-    candidates.sort((left, right) => {
-        const nameCompare = left.name.localeCompare(right.name)
-        if (nameCompare !== 0)
-            return nameCompare
-        return left.source.filePath.localeCompare(right.source.filePath)
-    })
+    sortUpdateCandidates(candidates)
 
     return {
         candidates,
@@ -187,12 +168,7 @@ async function checkUpdateDependenciesWithMetadata(
                 name: entry.name,
                 currentVersion: entry.version,
                 reason,
-                source: {
-                    filePath: entry.filePath,
-                    source: entry.source,
-                    manifestFormat: entry.manifestFormat,
-                    catalogName: entry.catalogName,
-                },
+                source: toDependencyLocation(entry),
             })
             continue
         }
@@ -202,12 +178,7 @@ async function checkUpdateDependenciesWithMetadata(
             candidates.push(candidate)
     }
 
-    candidates.sort((left, right) => {
-        const nameCompare = left.name.localeCompare(right.name)
-        if (nameCompare !== 0)
-            return nameCompare
-        return left.source.filePath.localeCompare(right.source.filePath)
-    })
+    sortUpdateCandidates(candidates)
 
     return {
         candidates,

@@ -17,6 +17,7 @@ import {
     YAML_FILE_EXTENSIONS,
 } from './constant'
 import { resolveRegistryUrl } from './registry'
+import { toPrettyJson } from './utils'
 
 export function detectManifestFormat(filePath: string): ManifestFormat {
     return YAML_FILE_EXTENSIONS.includes(extname(filePath) as typeof YAML_FILE_EXTENSIONS[number]) ? 'yaml' : 'json'
@@ -32,7 +33,7 @@ export async function readProjectManifest(filePath: string): Promise<PackageMani
 export async function writeProjectManifest(filePath: string, manifest: PackageManifest | WorkspaceConfig): Promise<void> {
     const content = detectManifestFormat(filePath) === 'yaml'
         ? `${stringify(manifest)}`
-        : `${JSON.stringify(manifest, null, 4)}\n`
+        : toPrettyJson(manifest)
 
     await writeFile(filePath, content, 'utf8')
 }
@@ -154,7 +155,7 @@ export function toManifestGlob(pattern: string): string {
     if (PACKAGE_MANIFEST_NAMES.some(name => pattern.endsWith(name)))
         return pattern.replace(/\\/g, '/')
 
-    return `${pattern.replace(/\\/g, '/')}/{package.json,package.yaml,package.yml}`
+    return `${pattern.replace(/\\/g, '/')}/{${PACKAGE_MANIFEST_NAMES.join(',')}}`
 }
 
 export function collectDependencyEntries(

@@ -1,6 +1,7 @@
 import { ofetch } from 'ofetch'
+import { DEFAULT_REGISTRY_URL } from './constant'
+import { normalizeRegistryUrl } from './utils'
 
-const DEFAULT_REGISTRY_URL = 'https://registry.npmjs.org/'
 const REGISTRY_CANDIDATE_URLS = [
     'https://registry.npmmirror.com/',
     'https://mirrors.cloud.tencent.com/npm/',
@@ -8,10 +9,6 @@ const REGISTRY_CANDIDATE_URLS = [
 ] as const
 const REGISTRY_PROBE_PACKAGE_NAME = 'react'
 const REGISTRY_PROBE_TIMEOUT_MS = 1200
-
-function normalizeRegistryUrl(registryUrl: string): string {
-    return registryUrl.endsWith('/') ? registryUrl : `${registryUrl}/`
-}
 
 export async function resolveRegistryUrl(): Promise<string> {
     const results = await Promise.all(
