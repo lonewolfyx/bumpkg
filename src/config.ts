@@ -16,6 +16,7 @@ import {
     PACKAGE_MANIFEST_NAMES,
     YAML_FILE_EXTENSIONS,
 } from './constant'
+import { resolveRegistryUrl } from './registry'
 
 export function detectManifestFormat(filePath: string): ManifestFormat {
     return YAML_FILE_EXTENSIONS.includes(extname(filePath) as typeof YAML_FILE_EXTENSIONS[number]) ? 'yaml' : 'json'
@@ -233,6 +234,7 @@ export function collectWorkspacePackagePaths(
 export async function resolveConfig(cwd: string = process.cwd()): Promise<ProjectConfig> {
     const rootPackagePath = await findRootManifestPath(cwd)
     const rootDir = dirname(rootPackagePath)
+    const registryUrl = await resolveRegistryUrl()
     const rootManifest = await readProjectManifest(rootPackagePath)
     const manifestWorkspaceConfig = getManifestWorkspaceConfig(rootManifest)
     const workspaceFilePath = await findUp('pnpm-workspace.yaml', { cwd })
@@ -297,6 +299,7 @@ export async function resolveConfig(cwd: string = process.cwd()): Promise<Projec
     return {
         cwd,
         rootDir,
+        registryUrl,
         rootPackagePath,
         monorepo,
         packages,

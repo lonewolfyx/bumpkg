@@ -109,7 +109,7 @@ function createUpdateCandidateFromResolution(
 async function checkUpdateDependenciesWithResolvedVersions(
     config: ProjectConfig,
     includeMajor: boolean,
-    resolveBatch: (queries: readonly PackageVersionQuery[]) => Promise<PackageVersionResolution[]>,
+    resolveBatch: (queries: readonly PackageVersionQuery[], registryUrl?: string, rootDir?: string) => Promise<PackageVersionResolution[]>,
 ): Promise<CheckUpdateResult> {
     const processableEntries = config.allDependencies.filter(entry => shouldProcessSpecifier(entry.version))
     const uniqueQueries = new Map<string, PackageVersionQuery>()
@@ -122,7 +122,7 @@ async function checkUpdateDependenciesWithResolvedVersions(
         })
     }
 
-    const resolutions = await resolveBatch(Array.from(uniqueQueries.values()))
+    const resolutions = await resolveBatch(Array.from(uniqueQueries.values()), config.registryUrl, config.rootDir)
     const resolutionMap = new Map(
         resolutions.map(resolution => [toQueryKey(resolution.name, resolution.specifier), resolution]),
     )
@@ -154,7 +154,7 @@ async function checkUpdateDependenciesWithResolvedVersions(
 async function checkUpdateDependenciesWithMetadata(
     config: ProjectConfig,
     includeMajor: boolean,
-    fetchPackageMetadata: (packageName: string) => Promise<RegistryPackageMetadata>,
+    fetchPackageMetadata: (packageName: string, registryUrl?: string, rootDir?: string) => Promise<RegistryPackageMetadata>,
 ): Promise<CheckUpdateResult> {
     const processableEntries = config.allDependencies.filter(entry => shouldProcessSpecifier(entry.version))
     const uniquePackageNames = Array.from(new Set(processableEntries.map(entry => entry.name)))
@@ -163,7 +163,7 @@ async function checkUpdateDependenciesWithMetadata(
     const errors: CheckUpdateResult['errors'] = []
 
     const metadataResults = await Promise.allSettled(
-        uniquePackageNames.map(async packageName => [packageName, await fetchPackageMetadata(packageName)] as const),
+        uniquePackageNames.map(async packageName => [packageName, await fetchPackageMetadata(packageName, config.registryUrl, config.rootDir)] as const),
     )
 
     for (const result of metadataResults) {
@@ -220,19 +220,17 @@ export async function checkUpdateDependencies(
     options: CheckUpdateOptions = {},
 ): Promise<CheckUpdateResult> {
     const includeMajor = options.includeMajor ?? false
-    const resolveBatch = options.resolvePackageVersions || resolvePackageVersions
+    const hasCustomResolver = options.resolvePackageVersions !== undefined
+    const fetchPackageMetadata = options.fetchPackageMetadata ?? getNpmRegistryMetaData
+    const resolveBatch = options.resolvePackageVersions ?? resolvePackageVersions
 
     try {
         return await checkUpdateDependenciesWithResolvedVersions(config, includeMajor, resolveBatch)
     }
     catch (error) {
-        if (options.resolvePackageVersions)
+        if (hasCustomResolver || !fetchPackageMetadata)
             throw error
     }
 
-    return checkUpdateDependenciesWithMetadata(
-        config,
-        includeMajor,
-        options.fetchPackageMetadata || getNpmRegistryMetaData,
-    )
+    return await checkUpdateDependenciesWithMetadata(config, includeMajor, fetchPackageMetadata)
 }

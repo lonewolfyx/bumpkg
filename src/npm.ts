@@ -2,7 +2,11 @@ import type {
     PackageVersionQuery,
     PackageVersionResolution,
     RegistryPackageMetadata,
+    VersionCacheEntry,
+    VersionCacheFile,
 } from './types'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { ofetch } from 'ofetch'
 import semver from 'semver'
 
@@ -12,37 +16,98 @@ interface NpmRegistryResponse {
     'dist-tags'?: Record<string, string | undefined>
 }
 
-interface FastNpmMetaResponse {
-    name?: string
-    version?: string | null
-    versions?: string[]
-    error?: string
+const DEFAULT_REGISTRY_URL = 'https://registry.npmjs.org/'
+const REGISTRY_REQUEST_TIMEOUT_MS = 2500
+const REGISTRY_REQUEST_CONCURRENCY = 24
+const VERSION_CACHE_DIR = join('node_modules', '.bumpkg')
+const VERSION_CACHE_FILE_NAME = 'version.json'
+const VERSION_CACHE_TTL_MS = 1000 * 60 * 60
+
+function normalizeRegistryUrl(registryUrl: string): string {
+    return registryUrl.endsWith('/') ? registryUrl : `${registryUrl}/`
 }
 
-const FAST_NPM_META_BASE_URL = 'https://npm.antfu.me'
-const FAST_NPM_META_BATCH_SIZE = 24
-
-function normalizeFastNpmMetaBaseUrl(baseUrl: string): string {
-    return baseUrl.replace(/\/+$/, '')
+function getVersionCachePath(rootDir: string): string {
+    return join(rootDir, VERSION_CACHE_DIR, VERSION_CACHE_FILE_NAME)
 }
 
-function buildFastNpmMetaRequestSpecifier(query: PackageVersionQuery): string {
-    return query.specifier === '*'
-        ? query.name
-        : `${query.name}@${query.specifier}`
+function getRegistryRequestTimeoutMs(): number {
+    const configured = Number.parseInt(process.env.BUMPKG_NPM_REGISTRY_TIMEOUT_MS || '', 10)
+    return Number.isFinite(configured) && configured > 0 ? configured : REGISTRY_REQUEST_TIMEOUT_MS
 }
 
-function toQueryKey(query: PackageVersionQuery): string {
-    return `${query.name}\u0000${query.specifier}`
+function getRegistryRequestConcurrency(): number {
+    const configured = Number.parseInt(process.env.BUMPKG_REGISTRY_REQUEST_CONCURRENCY || '', 10)
+    return Number.isFinite(configured) && configured > 0 ? configured : REGISTRY_REQUEST_CONCURRENCY
 }
 
-function chunkQueries(queries: readonly PackageVersionQuery[]): PackageVersionQuery[][] {
-    const chunks: PackageVersionQuery[][] = []
+function getVersionCacheTtlMs(): number {
+    const configured = Number.parseInt(process.env.BUMPKG_VERSION_CACHE_TTL_MS || '', 10)
+    return Number.isFinite(configured) && configured >= 0 ? configured : VERSION_CACHE_TTL_MS
+}
 
-    for (let index = 0; index < queries.length; index += FAST_NPM_META_BATCH_SIZE)
-        chunks.push(queries.slice(index, index + FAST_NPM_META_BATCH_SIZE))
+async function mapWithConcurrency<T, R>(
+    items: readonly T[],
+    concurrency: number,
+    worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+    const results = Array.from({ length: items.length })
+    let nextIndex = 0
 
-    return chunks
+    async function runWorker(): Promise<void> {
+        while (nextIndex < items.length) {
+            const currentIndex = nextIndex++
+            const item = items[currentIndex]
+            if (item === undefined)
+                continue
+
+            results[currentIndex] = await worker(item, currentIndex)
+        }
+    }
+
+    const workerCount = Math.min(Math.max(concurrency, 1), items.length)
+    await Promise.all(Array.from({ length: workerCount }, () => runWorker()))
+    return results
+}
+
+async function readVersionCache(rootDir?: string): Promise<VersionCacheFile | null> {
+    if (!rootDir)
+        return null
+
+    try {
+        const cacheContent = await readFile(getVersionCachePath(rootDir), 'utf8')
+        const cache = JSON.parse(cacheContent) as Partial<VersionCacheFile>
+
+        if (!cache.registryUrl || !cache.updatedAt || !cache.packages)
+            return null
+
+        return {
+            registryUrl: normalizeRegistryUrl(cache.registryUrl),
+            updatedAt: cache.updatedAt,
+            packages: cache.packages,
+        }
+    }
+    catch {
+        return null
+    }
+}
+
+async function writeVersionCache(rootDir: string, cache: VersionCacheFile): Promise<void> {
+    const cacheDir = join(rootDir, VERSION_CACHE_DIR)
+    await mkdir(cacheDir, { recursive: true })
+    await writeFile(
+        getVersionCachePath(rootDir),
+        `${JSON.stringify(cache, null, 4)}\n`,
+        'utf8',
+    )
+}
+
+function isVersionCacheEntryFresh(entry: VersionCacheEntry): boolean {
+    const fetchedAt = Date.parse(entry.fetchedAt)
+    if (Number.isNaN(fetchedAt))
+        return false
+
+    return Date.now() - fetchedAt <= getVersionCacheTtlMs()
 }
 
 function resolveVersionFromMetadata(
@@ -64,14 +129,125 @@ function resolveVersionFromMetadata(
     return stableVersions.filter(version => semver.satisfies(version, query.specifier)).at(-1) ?? null
 }
 
-async function resolveQueriesWithRegistryMetadata(
+export async function getPackageMetadata(
+    packageName: string,
+    registryUrl: string = DEFAULT_REGISTRY_URL,
+    rootDir?: string,
+): Promise<RegistryPackageMetadata> {
+    const normalizedRegistryUrl = normalizeRegistryUrl(registryUrl)
+    const cache = await readVersionCache(rootDir)
+    const cachedEntry = cache?.registryUrl === normalizedRegistryUrl
+        ? cache.packages[packageName]
+        : undefined
+
+    if (cachedEntry && isVersionCacheEntryFresh(cachedEntry)) {
+        return {
+            name: cachedEntry.name,
+            versions: cachedEntry.versions,
+            distTags: cachedEntry.distTags,
+        }
+    }
+
+    const response = await ofetch<NpmRegistryResponse>(`${normalizedRegistryUrl}${packageName.replace(/\//g, '%2f')}`, {
+        headers: {
+            'user-agent': `bumpkg node/${process.version}`,
+            'accept': 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*',
+        },
+        retry: 0,
+        timeout: getRegistryRequestTimeoutMs(),
+    })
+
+    const metadata = {
+        name: response.name ?? packageName,
+        versions: Object.keys(response.versions ?? {}),
+        distTags: response['dist-tags'] ?? {},
+    }
+
+    if (rootDir) {
+        const nextCache: VersionCacheFile = {
+            registryUrl: normalizedRegistryUrl,
+            updatedAt: new Date().toISOString(),
+            packages: {
+                ...(cache?.registryUrl === normalizedRegistryUrl ? cache.packages : {}),
+                [packageName]: {
+                    name: metadata.name,
+                    fetchedAt: new Date().toISOString(),
+                    versions: metadata.versions,
+                    distTags: metadata.distTags,
+                },
+            },
+        }
+        await writeVersionCache(rootDir, nextCache)
+    }
+
+    return metadata
+}
+
+export async function getNpmRegistryMetaData(
+    packageName: string,
+    registryUrl?: string,
+    rootDir?: string,
+): Promise<RegistryPackageMetadata> {
+    return await getPackageMetadata(packageName, registryUrl, rootDir)
+}
+
+export async function resolvePackageVersions(
     queries: readonly PackageVersionQuery[],
+    registryUrl: string = DEFAULT_REGISTRY_URL,
+    rootDir?: string,
 ): Promise<PackageVersionResolution[]> {
+    if (queries.length === 0)
+        return []
+
     const uniquePackageNames = Array.from(new Set(queries.map(query => query.name)))
-    const metadataEntries = await Promise.all(
-        uniquePackageNames.map(async packageName => [packageName, await getNpmRegistryMetaData(packageName)] as const),
+    const normalizedRegistryUrl = normalizeRegistryUrl(registryUrl)
+    const cache = await readVersionCache(rootDir)
+    const cachedPackages = cache?.registryUrl === normalizedRegistryUrl ? cache.packages : {}
+    const packageMetadata = new Map<string, RegistryPackageMetadata>()
+    const missingPackageNames = uniquePackageNames.filter((packageName) => {
+        const cachedEntry = cachedPackages?.[packageName]
+        if (cachedEntry && isVersionCacheEntryFresh(cachedEntry)) {
+            packageMetadata.set(packageName, {
+                name: cachedEntry.name,
+                versions: cachedEntry.versions,
+                distTags: cachedEntry.distTags,
+            })
+            return false
+        }
+
+        return true
+    })
+
+    const metadataEntries = await mapWithConcurrency(
+        missingPackageNames,
+        getRegistryRequestConcurrency(),
+        async packageName => [packageName, await getPackageMetadata(packageName, normalizedRegistryUrl)] as const,
     )
-    const metadataCache = new Map<string, RegistryPackageMetadata>(metadataEntries)
+    const metadataCache = new Map<string, RegistryPackageMetadata>([
+        ...Array.from(packageMetadata.entries()),
+        ...metadataEntries,
+    ])
+
+    if (rootDir && metadataEntries.length > 0) {
+        const nextPackages = {
+            ...(cache?.registryUrl === normalizedRegistryUrl ? cache.packages : {}),
+        } as Record<string, VersionCacheEntry>
+
+        for (const [packageName, metadata] of metadataEntries) {
+            nextPackages[packageName] = {
+                name: metadata.name,
+                fetchedAt: new Date().toISOString(),
+                versions: metadata.versions,
+                distTags: metadata.distTags,
+            }
+        }
+
+        await writeVersionCache(rootDir, {
+            registryUrl: normalizedRegistryUrl,
+            updatedAt: new Date().toISOString(),
+            packages: nextPackages,
+        })
+    }
 
     return queries.map((query) => {
         const metadata = metadataCache.get(query.name)
@@ -83,86 +259,5 @@ async function resolveQueriesWithRegistryMetadata(
             specifier: query.specifier,
             version: resolveVersionFromMetadata(query, metadata),
         }
-    })
-}
-
-export async function getNpmRegistryMetaData(
-    packageName: string,
-): Promise<RegistryPackageMetadata> {
-    const npmRegistryFetch = await import('npm-registry-fetch')
-    const response = await npmRegistryFetch.json(`/${packageName.replace(/\//g, '%2f')}`, {
-        headers: {
-            'user-agent': `bumpkg node/${process.version}`,
-            'accept': 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*',
-        },
-    }) as NpmRegistryResponse
-
-    return {
-        name: response.name ?? packageName,
-        versions: Object.keys(response.versions ?? {}),
-        distTags: response['dist-tags'] ?? {},
-    }
-}
-
-export async function resolvePackageVersions(
-    queries: readonly PackageVersionQuery[],
-): Promise<PackageVersionResolution[]> {
-    if (queries.length === 0)
-        return []
-
-    const baseUrl = normalizeFastNpmMetaBaseUrl(
-        process.env.BUMPKG_FAST_NPM_META_URL || FAST_NPM_META_BASE_URL,
-    )
-    const resultMap = new Map<string, PackageVersionResolution>()
-
-    for (const chunk of chunkQueries(queries)) {
-        try {
-            const encodedSpecs = chunk
-                .map(buildFastNpmMetaRequestSpecifier)
-                .map(specifier => encodeURIComponent(specifier))
-                .join('+')
-
-            const response = await ofetch<FastNpmMetaResponse | FastNpmMetaResponse[]>(
-                `${baseUrl}/${encodedSpecs}`,
-                {
-                    query: {
-                        throw: 'false',
-                    },
-                    retry: 0,
-                },
-            )
-            const records = Array.isArray(response) ? response : [response]
-
-            if (records.length !== chunk.length)
-                throw new Error(`Expected ${chunk.length} version results but received ${records.length}.`)
-
-            for (const [index, record] of records.entries()) {
-                const query = chunk[index]
-                if (!query)
-                    continue
-
-                if (record?.error)
-                    throw new Error(record.error)
-
-                resultMap.set(toQueryKey(query), {
-                    name: query.name,
-                    specifier: query.specifier,
-                    version: record?.version ?? null,
-                })
-            }
-        }
-        catch {
-            const fallbackResolutions = await resolveQueriesWithRegistryMetadata(chunk)
-
-            for (const resolution of fallbackResolutions)
-                resultMap.set(toQueryKey(resolution), resolution)
-        }
-    }
-
-    return queries.map((query) => {
-        const resolution = resultMap.get(toQueryKey(query))
-        if (!resolution)
-            throw new Error(`Missing resolved version for ${query.name}@${query.specifier}.`)
-        return resolution
     })
 }

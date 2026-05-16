@@ -15,6 +15,7 @@ function createProjectConfig(): ProjectConfig {
     return {
         cwd: '/project',
         rootDir: '/project',
+        registryUrl: 'https://registry.npmjs.org/',
         rootPackagePath: '/project/package.json',
         monorepo: false,
         packages: ['/project/package.json'],
