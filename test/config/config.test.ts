@@ -1,7 +1,8 @@
 import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ofetch } from 'ofetch'
-import { extractCatalogEntries, resolveConfig } from '@/config'
+import { resolveConfig } from '@/config'
+import { extractCatalogEntries } from '@/package/catalog'
 import { createTempDir, removeTempDir, writeJson, writeText } from '../helpers'
 
 const fixturesDir = join(process.cwd(), 'test', 'fixtures')

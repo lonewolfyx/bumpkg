@@ -62,6 +62,25 @@ export interface ProjectConfig {
     yarnConfigPath?: string
 }
 
+export interface PnpmWorkspaceContext {
+    filePath: string
+    rootPackagePath?: PackageJsonPath
+    workspaceConfig: WorkspaceConfig
+    packagePaths: PackageJsonPath[]
+}
+
+export interface PackageContext {
+    rootDir: string
+    rootPackagePath: PackageJsonPath
+    rootManifest: PackageManifest
+    monorepo: boolean
+    packages: PackageJsonPath[]
+    workspaceFilePath?: string
+    workspaceConfig?: WorkspaceConfig
+    yarnConfigPath?: string
+    yarnConfig?: WorkspaceConfig
+}
+
 export interface RegistryPackageMetadata {
     name: string
     versions: string[]
