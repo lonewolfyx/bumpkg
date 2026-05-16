@@ -1,4 +1,5 @@
 import type { DependencyType } from './types'
+import semver from 'semver'
 
 export const DEPENDENCY_FIELDS = [
     'dependencies',
@@ -23,7 +24,7 @@ export const CLI_TABLE_HEADERS = [
     'new_Version',
 ] as const
 
-export const PACKAGE_MANIFEST_NAMES = ['package.json', 'package.yaml'] as const
+export const PACKAGE_MANIFEST_NAMES = ['package.json', 'package.yaml', 'package.yml'] as const
 
 export const YAML_FILE_EXTENSIONS = ['.yaml', '.yml'] as const
 
@@ -48,6 +49,7 @@ export function getRangePrefix(range: string): string | null {
 
 export function isSupportedRange(range: string): boolean {
     return SUPPORTED_VERSION_PREFIXES.includes(getRangePrefix(range) as typeof SUPPORTED_VERSION_PREFIXES[number])
+        || semver.valid(range.trim()) !== null
 }
 
 export function isSkippedRange(range: string): boolean {

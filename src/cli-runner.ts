@@ -4,13 +4,7 @@ import { checkUpdateDependencies } from './check'
 import { resolveConfig } from './config'
 import { CLI_TABLE_HEADERS } from './constant'
 import { cleanupLockFiles } from './lock'
-import { getPackageMetadata, resolvePackageVersions } from './npm'
 import { applyDependencyUpdates } from './update'
-
-export interface CliDependencies {
-    fetchPackageMetadata?: typeof getPackageMetadata
-    resolvePackageVersions?: typeof resolvePackageVersions
-}
 
 export function renderUpdateTable(candidates: UpdateCandidate[]): string {
     const rows = candidates.map(candidate => [
@@ -47,27 +41,25 @@ export async function confirmDependencyUpdates(): Promise<boolean> {
 
 export async function runCliWithOptions(
     options: CommandArgs,
-    dependencies: CliDependencies = {},
 ): Promise<void> {
     const projectConfig = await resolveConfig(options.cwd)
     const checkResult = await checkUpdateDependencies(projectConfig, {
         includeMajor: options.major,
-        resolvePackageVersions: dependencies.resolvePackageVersions ?? resolvePackageVersions,
-        fetchPackageMetadata: dependencies.fetchPackageMetadata ?? getPackageMetadata,
     })
 
+    if (checkResult.errors.length > 0) {
+        console.error(`Failed to check ${checkResult.errors.length} dependencies.`)
+
+        for (const error of checkResult.errors.slice(0, 5))
+            console.error(`${error.name}: ${error.reason}`)
+
+        if (checkResult.errors.length > 5)
+            console.error(`...and ${checkResult.errors.length - 5} more errors.`)
+    }
+
     if (checkResult.candidates.length === 0) {
-        if (checkResult.errors.length > 0) {
-            console.error(`Failed to check ${checkResult.errors.length} dependencies.`)
-
-            for (const error of checkResult.errors.slice(0, 5))
-                console.error(`${error.name}: ${error.reason}`)
-
-            if (checkResult.errors.length > 5)
-                console.error(`...and ${checkResult.errors.length - 5} more errors.`)
-
+        if (checkResult.errors.length > 0)
             return
-        }
 
         console.log('No updatable dependencies found.')
         return
@@ -90,6 +82,11 @@ export async function runCliWithOptions(
 
     if (cleanupResult.removed.length > 0)
         console.log(`Removed lock files: ${cleanupResult.removed.join(', ')}`)
-    else
+    else if (cleanupResult.failed.length === 0)
         console.log('No supported lock files found.')
+
+    if (cleanupResult.failed.length > 0) {
+        for (const failure of cleanupResult.failed)
+            console.error(`Failed to remove lock file ${failure.filePath}: ${failure.reason}`)
+    }
 }

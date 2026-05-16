@@ -94,6 +94,24 @@ describe('checkUpdateDependencies', () => {
         }))
     })
 
+    test('supports exact versions', async () => {
+        const result = await checkUpdateDependencies(
+            createProjectConfig([createEntry('react', '18.2.0')]),
+            {
+                fetchPackageMetadata: vi.fn().mockResolvedValue({
+                    name: 'react',
+                    versions: ['18.2.0', '18.3.0'],
+                    distTags: { latest: '18.3.0' },
+                }),
+            },
+        )
+
+        expect(result.candidates[0]).toEqual(expect.objectContaining({
+            newVersion: '18.3.0',
+            nextSpecifier: '18.3.0',
+        }))
+    })
+
     test('skips comparison ranges', async () => {
         const fetchPackageMetadata = vi.fn()
         const result = await checkUpdateDependencies(
@@ -166,7 +184,7 @@ describe('checkUpdateDependencies', () => {
         const resolvePackageVersions = vi.fn().mockResolvedValue([
             {
                 name: 'shared',
-                specifier: '>=1.0.0<2.0.0',
+                specifier: '>=1.0.0 <2.0.0',
                 version: '1.1.0',
             },
         ])
@@ -183,7 +201,7 @@ describe('checkUpdateDependencies', () => {
         expect(resolvePackageVersions).toHaveBeenCalledWith([
             {
                 name: 'shared',
-                specifier: '>=1.0.0<2.0.0',
+                specifier: '>=1.0.0 <2.0.0',
             },
         ])
         expect(result.candidates).toHaveLength(2)

@@ -1,6 +1,8 @@
 import type { RegistryPackageMetadata } from '@/types'
+import semver from 'semver'
 import {
     buildNextSpecifier,
+    buildSameMajorRangeSpecifier,
     detectUpdateLevel,
     getCurrentVersionFromSpecifier,
     resolveLatestVersion,
@@ -43,6 +45,13 @@ describe('version helpers', () => {
         expect(buildNextSpecifier('^1.0.0', '1.2.0')).toBe('^1.2.0')
         expect(buildNextSpecifier('~1.0.0', '1.2.0')).toBe('~1.2.0')
         expect(buildNextSpecifier('*', '1.2.0')).toBe('1.2.0')
+    })
+
+    test('buildSameMajorRangeSpecifier returns a valid semver range', () => {
+        const range = buildSameMajorRangeSpecifier('^1.0.0')
+
+        expect(range).toBe('>=1.0.0 <2.0.0')
+        expect(range && semver.validRange(range)).toBe('>=1.0.0 <2.0.0')
     })
 
     test('selectTargetVersion skips major by default', () => {

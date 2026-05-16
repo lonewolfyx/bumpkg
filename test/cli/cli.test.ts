@@ -53,6 +53,7 @@ function setupCliMocks(result: CheckUpdateResult, output: string[] = []) {
     const cleanupSpy = vi.spyOn(lockModule, 'cleanupLockFiles').mockResolvedValue({
         removed: ['/project/pnpm-lock.yaml'],
         missing: [],
+        failed: [],
     })
     const resolveSpy = vi.spyOn(configModule, 'resolveConfig').mockResolvedValue(createProjectConfig())
     vi.mocked(confirm).mockResolvedValue(true)
@@ -129,11 +130,12 @@ describe('cli helpers', () => {
 
         await runCliWithOptions({ c: '', cwd: process.cwd(), major: true, _: [''] })
 
-        expect(mocks.checkSpy).toHaveBeenCalledWith(expect.anything(), {
-            includeMajor: true,
-            fetchPackageMetadata: expect.any(Function),
-            resolvePackageVersions: expect.any(Function),
-        })
+        expect(mocks.checkSpy).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                includeMajor: true,
+            }),
+        )
     })
 
     test('stops when the user cancels', async () => {
@@ -156,5 +158,51 @@ describe('cli helpers', () => {
         expect(mocks.updateSpy).toHaveBeenCalled()
         expect(mocks.cleanupSpy).toHaveBeenCalledWith('/project')
         expect(output.at(-1)).toContain('Removed lock files:')
+    })
+
+    test('prints check errors even when some candidates are still available', async () => {
+        const output: string[] = []
+        const errors: string[] = []
+        setupCliMocks({
+            candidates: [createCandidate()],
+            errors: [{
+                name: 'react',
+                currentVersion: '^18.0.0',
+                reason: 'registry timeout',
+                source: {
+                    filePath: '/project/package.json',
+                    source: 'dependencies',
+                    manifestFormat: 'json',
+                },
+            }],
+        }, output).errorSpy.mockImplementation((message: string) => errors.push(message))
+
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
+
+        expect(errors).toEqual([
+            'Failed to check 1 dependencies.',
+            'react: registry timeout',
+        ])
+        expect(output).toContain('Updated 1 dependencies across 1 files.')
+    })
+
+    test('reports lockfile cleanup failures', async () => {
+        const output: string[] = []
+        const errors: string[] = []
+        const mocks = setupCliMocks({ candidates: [createCandidate()], errors: [] }, output)
+        mocks.cleanupSpy.mockResolvedValue({
+            removed: [],
+            missing: [],
+            failed: [{
+                filePath: '/project/pnpm-lock.yaml',
+                reason: 'permission denied',
+            }],
+        })
+        mocks.errorSpy.mockImplementation((message: string) => errors.push(message))
+
+        await runCliWithOptions({ c: '', cwd: process.cwd(), major: false, _: [''] })
+
+        expect(output).not.toContain('No supported lock files found.')
+        expect(errors).toContain('Failed to remove lock file /project/pnpm-lock.yaml: permission denied')
     })
 })

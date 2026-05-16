@@ -46,13 +46,21 @@ export async function findRootManifestPath(cwd: string): Promise<string> {
     if (workspaceFilePath) {
         const workspaceRoot = dirname(workspaceFilePath)
         const workspaceConfig = parse(await readFile(workspaceFilePath, 'utf8')) as WorkspaceConfig
+        const workspacePackages = workspaceConfig.packages
 
-        if ((workspaceConfig.packages?.length ?? 0) > 0) {
+        if ((workspacePackages?.length ?? 0) > 0) {
             for (const manifestName of PACKAGE_MANIFEST_NAMES) {
                 const candidate = join(workspaceRoot, manifestName)
                 try {
                     await readFile(candidate, 'utf8')
-                    return candidate
+                    const workspacePackagePaths = collectWorkspacePackagePaths(
+                        workspaceRoot,
+                        candidate,
+                        workspacePackages!,
+                    )
+
+                    if (workspacePackagePaths.includes(nearestManifest))
+                        return candidate
                 }
                 catch {
                 }
@@ -60,23 +68,32 @@ export async function findRootManifestPath(cwd: string): Promise<string> {
         }
     }
 
-    return await findAncestorWorkspaceManifest(nearestManifest) ?? nearestManifest
+    const ancestorWorkspaceManifest = await findAncestorWorkspaceManifest(nearestManifest)
+    return ancestorWorkspaceManifest ?? nearestManifest
+}
+
+async function findManifestInDirectory(directory: string): Promise<string | undefined> {
+    for (const manifestName of PACKAGE_MANIFEST_NAMES) {
+        const manifestPath = join(directory, manifestName)
+
+        try {
+            await readFile(manifestPath, 'utf8')
+            return manifestPath
+        }
+        catch {
+        }
+    }
+
+    return undefined
 }
 
 async function findNearestManifestPath(cwd: string): Promise<string | undefined> {
     let currentDirectory = cwd
 
     while (currentDirectory !== dirname(currentDirectory)) {
-        for (const manifestName of PACKAGE_MANIFEST_NAMES) {
-            const manifestPath = join(currentDirectory, manifestName)
-
-            try {
-                await readFile(manifestPath, 'utf8')
-                return manifestPath
-            }
-            catch {
-            }
-        }
+        const manifestPath = await findManifestInDirectory(currentDirectory)
+        if (manifestPath)
+            return manifestPath
 
         currentDirectory = dirname(currentDirectory)
     }
@@ -136,7 +153,7 @@ export function toManifestGlob(pattern: string): string {
     if (PACKAGE_MANIFEST_NAMES.some(name => pattern.endsWith(name)))
         return pattern.replace(/\\/g, '/')
 
-    return `${pattern.replace(/\\/g, '/')}/{package.json,package.yaml}`
+    return `${pattern.replace(/\\/g, '/')}/{package.json,package.yaml,package.yml}`
 }
 
 export function collectDependencyEntries(
@@ -144,9 +161,7 @@ export function collectDependencyEntries(
     manifest: PackageManifest,
     field: DependencyType,
 ): DependencyEntry[] {
-    const dependencies = manifest[field] ?? {}
-
-    return Object.entries(dependencies).map(([name, version]) => ({
+    return Object.entries(manifest[field] ?? {}).map(([name, version]) => ({
         name,
         version,
         filePath,
@@ -231,9 +246,30 @@ export async function resolveConfig(cwd: string = process.cwd()): Promise<Projec
         ? parse(await readFile(yarnConfigPath, 'utf8')) as WorkspaceConfig
         : undefined
 
+    let activeWorkspaceFilePath = workspaceFilePath
+    let activeWorkspaceConfig = workspaceConfig
+
+    if (workspaceFilePath && workspaceConfig?.packages?.length) {
+        const workspaceRoot = dirname(workspaceFilePath)
+        const workspaceRootManifestPath = await findManifestInDirectory(workspaceRoot)
+
+        if (workspaceRootManifestPath) {
+            const workspacePackagePaths = collectWorkspacePackagePaths(
+                workspaceRoot,
+                workspaceRootManifestPath,
+                workspaceConfig.packages,
+            )
+
+            if (!workspacePackagePaths.includes(rootPackagePath)) {
+                activeWorkspaceFilePath = undefined
+                activeWorkspaceConfig = undefined
+            }
+        }
+    }
+
     const workspacePatterns = [
         ...getManifestWorkspacePatterns(rootManifest),
-        ...(workspaceConfig?.packages ?? []),
+        ...(activeWorkspaceConfig?.packages ?? []),
     ]
 
     const monorepo = workspacePatterns.length > 0
@@ -254,7 +290,7 @@ export async function resolveConfig(cwd: string = process.cwd()): Promise<Projec
 
     const catalogDependencies = [
         ...(manifestWorkspaceConfig ? extractCatalogEntries(rootPackagePath, manifestWorkspaceConfig) : []),
-        ...(workspaceFilePath && workspaceConfig ? extractCatalogEntries(workspaceFilePath, workspaceConfig) : []),
+        ...(activeWorkspaceFilePath && activeWorkspaceConfig ? extractCatalogEntries(activeWorkspaceFilePath, activeWorkspaceConfig) : []),
         ...(yarnConfigPath && yarnConfig ? extractCatalogEntries(yarnConfigPath, yarnConfig) : []),
     ]
 
@@ -274,7 +310,7 @@ export async function resolveConfig(cwd: string = process.cwd()): Promise<Projec
             ...optionalDependencies,
             ...catalogDependencies,
         ],
-        workspaceFilePath: workspaceFilePath ?? undefined,
-        yarnConfigPath: yarnConfigPath ?? undefined,
+        workspaceFilePath: activeWorkspaceFilePath,
+        yarnConfigPath,
     }
 }

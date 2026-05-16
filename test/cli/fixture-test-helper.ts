@@ -6,6 +6,7 @@ import semver from 'semver'
 import { checkUpdateDependencies } from '@/check'
 import { runCliWithOptions } from '@/cli-runner'
 import { resolveConfig } from '@/config'
+import * as npmModule from '@/npm'
 import { createTempDir, removeTempDir } from '../helpers'
 
 vi.mock('@clack/prompts', () => ({
@@ -164,19 +165,15 @@ export async function runFixtureScenario(scenario: FixtureScenario) {
         vi.mocked(confirm).mockResolvedValue(true)
         vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
         vi.spyOn(console, 'error').mockImplementation(() => {})
+        vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+        vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
-        await runCliWithOptions(
-            {
-                c: '',
-                cwd: dirname(fixtureEntryPath),
-                major: scenario.args?.includes('--major') ?? false,
-                _: [''],
-            },
-            {
-                fetchPackageMetadata,
-                resolvePackageVersions,
-            },
-        )
+        await runCliWithOptions({
+            c: '',
+            cwd: dirname(fixtureEntryPath),
+            major: scenario.args?.includes('--major') ?? false,
+            _: [''],
+        })
 
         const candidates = checkResult.candidates.map(candidate => ({
             catalogName: candidate.source.catalogName ?? null,

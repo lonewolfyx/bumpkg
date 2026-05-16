@@ -1,4 +1,4 @@
-import { stat } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { cleanupLockFiles, getLockFilePaths } from '@/lock'
 import { createTempDir, removeTempDir, writeText } from '../helpers'
@@ -70,6 +70,27 @@ describe('cleanupLockFiles', () => {
             await cleanupLockFiles(directory)
 
             await expect(stat(filePath)).resolves.toBeTruthy()
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
+
+    test('reports lock files that exist but cannot be removed', async () => {
+        const directory = await createTempDir('bumpkg-lock-failed')
+        const filePath = join(directory, 'package-lock.json')
+
+        try {
+            await mkdir(filePath, { recursive: true })
+
+            const result = await cleanupLockFiles(directory)
+
+            expect(result.failed).toEqual([
+                expect.objectContaining({
+                    filePath,
+                }),
+            ])
+            expect(result.missing).not.toContain(filePath)
         }
         finally {
             await removeTempDir(directory)

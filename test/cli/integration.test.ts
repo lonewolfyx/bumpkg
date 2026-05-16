@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { confirm } from '@clack/prompts'
 import { runCliWithOptions } from '@/cli-runner'
+import * as npmModule from '@/npm'
 import { createTempDir, removeTempDir, writeJson, writeText } from '../helpers'
 import { createVersionResolutionLoader } from './fixture-test-helper'
 
@@ -53,11 +54,10 @@ describe('cli integration', () => {
             vi.mocked(confirm).mockResolvedValue(true)
             vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
             vi.spyOn(console, 'error').mockImplementation(() => {})
+            vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+            vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
-            await runCliWithOptions(
-                { c: '', cwd: directory, major: false, _: [''] },
-                { fetchPackageMetadata, resolvePackageVersions },
-            )
+            await runCliWithOptions({ c: '', cwd: directory, major: false, _: [''] })
 
             expect(output).toEqual(['No updatable dependencies found.'])
         }
@@ -96,11 +96,10 @@ describe('cli integration', () => {
             vi.mocked(confirm).mockResolvedValue(true)
             vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
             vi.spyOn(console, 'error').mockImplementation(() => {})
+            vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+            vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
-            await runCliWithOptions(
-                { c: '', cwd: directory, major: false, _: [''] },
-                { fetchPackageMetadata, resolvePackageVersions },
-            )
+            await runCliWithOptions({ c: '', cwd: directory, major: false, _: [''] })
 
             expect(await readFile(packagePath, 'utf8')).toContain('"lodash": "^1.2.0"')
             expect(output.some(line => line.includes('Updated 1 dependencies'))).toBe(true)
@@ -138,11 +137,10 @@ describe('cli integration', () => {
             vi.mocked(confirm).mockResolvedValue(true)
             vi.spyOn(console, 'log').mockImplementation(() => {})
             vi.spyOn(console, 'error').mockImplementation(() => {})
+            vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+            vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
-            await runCliWithOptions(
-                { c: '', cwd: directory, major: true, _: [''] },
-                { fetchPackageMetadata, resolvePackageVersions },
-            )
+            await runCliWithOptions({ c: '', cwd: directory, major: true, _: [''] })
 
             expect(await readFile(packagePath, 'utf8')).toContain('"vue": "^2.0.0"')
         }
@@ -179,11 +177,10 @@ describe('cli integration', () => {
             vi.mocked(confirm).mockResolvedValue(false)
             vi.spyOn(console, 'log').mockImplementation(() => {})
             vi.spyOn(console, 'error').mockImplementation(() => {})
+            vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+            vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
-            await runCliWithOptions(
-                { c: '', cwd: directory, major: false, _: [''] },
-                { fetchPackageMetadata, resolvePackageVersions },
-            )
+            await runCliWithOptions({ c: '', cwd: directory, major: false, _: [''] })
 
             expect(await readFile(packagePath, 'utf8')).toContain('"lodash": "^1.0.0"')
         }

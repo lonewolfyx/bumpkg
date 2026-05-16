@@ -8,7 +8,7 @@ import type {
     RegistryPackageMetadata,
     UpdateCandidate,
 } from './types'
-import { getPackageMetadata, resolvePackageVersions } from './npm'
+import { getNpmRegistryMetaData, resolvePackageVersions } from './npm'
 import {
     buildNextSpecifier,
     buildSameMajorRangeSpecifier,
@@ -156,35 +156,45 @@ async function checkUpdateDependenciesWithMetadata(
     includeMajor: boolean,
     fetchPackageMetadata: (packageName: string) => Promise<RegistryPackageMetadata>,
 ): Promise<CheckUpdateResult> {
+    const processableEntries = config.allDependencies.filter(entry => shouldProcessSpecifier(entry.version))
+    const uniquePackageNames = Array.from(new Set(processableEntries.map(entry => entry.name)))
     const metadataCache = new Map<string, RegistryPackageMetadata>()
     const candidates: UpdateCandidate[] = []
     const errors: CheckUpdateResult['errors'] = []
 
-    for (const entry of config.allDependencies) {
-        if (!shouldProcessSpecifier(entry.version))
-            continue
+    const metadataResults = await Promise.allSettled(
+        uniquePackageNames.map(async packageName => [packageName, await fetchPackageMetadata(packageName)] as const),
+    )
 
-        let metadata = metadataCache.get(entry.name)
+    for (const result of metadataResults) {
+        if (result.status === 'fulfilled') {
+            const [packageName, metadata] = result.value
+            metadataCache.set(packageName, metadata)
+        }
+    }
 
+    for (const entry of processableEntries) {
+        const metadata = metadataCache.get(entry.name)
         if (!metadata) {
-            try {
-                metadata = await fetchPackageMetadata(entry.name)
-                metadataCache.set(entry.name, metadata)
-            }
-            catch (error) {
-                errors.push({
-                    name: entry.name,
-                    currentVersion: entry.version,
-                    reason: error instanceof Error ? error.message : 'Failed to fetch package metadata',
-                    source: {
-                        filePath: entry.filePath,
-                        source: entry.source,
-                        manifestFormat: entry.manifestFormat,
-                        catalogName: entry.catalogName,
-                    },
-                })
-                continue
-            }
+            const failedResult = metadataResults[uniquePackageNames.indexOf(entry.name)]
+            const reason = failedResult?.status === 'rejected'
+                ? failedResult.reason instanceof Error
+                    ? failedResult.reason.message
+                    : 'Failed to fetch package metadata'
+                : 'Failed to fetch package metadata'
+
+            errors.push({
+                name: entry.name,
+                currentVersion: entry.version,
+                reason,
+                source: {
+                    filePath: entry.filePath,
+                    source: entry.source,
+                    manifestFormat: entry.manifestFormat,
+                    catalogName: entry.catalogName,
+                },
+            })
+            continue
         }
 
         const candidate = createUpdateCandidate(entry, metadata, includeMajor)
@@ -210,18 +220,19 @@ export async function checkUpdateDependencies(
     options: CheckUpdateOptions = {},
 ): Promise<CheckUpdateResult> {
     const includeMajor = options.includeMajor ?? false
-    const fetchPackageMetadata = options.fetchPackageMetadata ?? getPackageMetadata
-    const resolveBatch = options.resolvePackageVersions ?? resolvePackageVersions
+    const resolveBatch = options.resolvePackageVersions || resolvePackageVersions
 
-    if (options.resolvePackageVersions || !options.fetchPackageMetadata) {
-        try {
-            return await checkUpdateDependenciesWithResolvedVersions(config, includeMajor, resolveBatch)
-        }
-        catch (error) {
-            if (options.resolvePackageVersions)
-                throw error
-        }
+    try {
+        return await checkUpdateDependenciesWithResolvedVersions(config, includeMajor, resolveBatch)
+    }
+    catch (error) {
+        if (options.resolvePackageVersions)
+            throw error
     }
 
-    return await checkUpdateDependenciesWithMetadata(config, includeMajor, fetchPackageMetadata)
+    return checkUpdateDependenciesWithMetadata(
+        config,
+        includeMajor,
+        options.fetchPackageMetadata || getNpmRegistryMetaData,
+    )
 }
