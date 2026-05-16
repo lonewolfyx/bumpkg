@@ -7,9 +7,10 @@ import type {
     WorkspaceConfig,
 } from './types'
 import { readProjectManifest, writeProjectManifest } from './config'
+import { isWildcardSpecifier } from './utils'
 
 function canApplyCandidate(candidate: UpdateCandidate, includeMajor: boolean): boolean {
-    if (candidate.currentSpecifier.trim() === '*')
+    if (isWildcardSpecifier(candidate.currentSpecifier))
         return true
 
     return includeMajor || candidate.updateLevel !== 'major'
@@ -34,7 +35,7 @@ export function groupCandidatesByFile(
 }
 
 function applyManifestDependencyUpdates(
-    manifest: Record<string, any>,
+    manifest: PackageManifest,
     candidates: UpdateCandidate[],
 ): string[] {
     const updatedDependencies: string[] = []
@@ -46,7 +47,7 @@ function applyManifestDependencyUpdates(
             || candidate.source.source === 'optionalDependencies'
         ) {
             manifest[candidate.source.source] ??= {}
-            manifest[candidate.source.source][candidate.name] = candidate.nextSpecifier
+            manifest[candidate.source.source]![candidate.name] = candidate.nextSpecifier
             updatedDependencies.push(candidate.name)
         }
     }
@@ -93,7 +94,7 @@ export async function applyUpdatesToFile(
 ): Promise<UpdatedFileResult> {
     const catalogCandidates = candidates.filter(candidate => candidate.source.source === 'catalog' || candidate.source.source === 'catalogs')
     const manifest = await readProjectManifest(filePath)
-    const updatedDependencies = applyManifestDependencyUpdates(manifest as Record<string, any>, candidates)
+    const updatedDependencies = applyManifestDependencyUpdates(manifest, candidates)
 
     if (catalogCandidates.length > 0) {
         const workspaceConfig = resolveWorkspaceConfigTarget(manifest)

@@ -1,16 +1,17 @@
 import type { RegistryPackageMetadata, UpdateLevel } from './types'
 import semver from 'semver'
 import { isSkippedRange, isSupportedRange } from './constant'
+import { isWildcardSpecifier } from './utils'
 
 export function stripVersionPrefix(specifier: string): string {
     const value = specifier.trim()
-    if (value === '*')
+    if (isWildcardSpecifier(value))
         return value
     return value.replace(/^[~^]/, '')
 }
 
 export function getCurrentVersionFromSpecifier(specifier: string): string | null {
-    if (specifier.trim() === '*')
+    if (isWildcardSpecifier(specifier))
         return null
 
     return semver.valid(stripVersionPrefix(specifier)) ?? semver.clean(stripVersionPrefix(specifier))
@@ -54,7 +55,7 @@ export function resolveLatestVersion(metadata: RegistryPackageMetadata): string 
 export function buildNextSpecifier(currentSpecifier: string, newVersion: string): string {
     const trimmed = currentSpecifier.trim()
 
-    if (trimmed === '*')
+    if (isWildcardSpecifier(trimmed))
         return newVersion
 
     if (trimmed.startsWith('^'))
@@ -90,7 +91,7 @@ export function selectTargetVersion(
     if (!latestVersion)
         return null
 
-    if (currentSpecifier.trim() === '*') {
+    if (isWildcardSpecifier(currentSpecifier)) {
         return {
             newVersion: latestVersion,
             updateLevel: detectUpdateLevel('0.0.0', latestVersion) ?? 'patch',
