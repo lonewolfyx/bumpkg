@@ -264,4 +264,23 @@ describe('applyDependencyUpdates', () => {
 
         expect(grouped.get(filePath)).toHaveLength(1)
     })
+
+    test('always applies wildcard candidates even when major updates are excluded', () => {
+        const filePath = '/tmp/package.json'
+        const grouped = groupCandidatesByFile([
+            createCandidate({
+                currentVersion: '*',
+                currentSpecifier: '*',
+                nextSpecifier: '4.17.21',
+                updateLevel: 'major',
+                source: {
+                    filePath,
+                    source: 'dependencies',
+                    manifestFormat: 'json',
+                },
+            }),
+        ], false)
+
+        expect(grouped.get(filePath)).toHaveLength(1)
+    })
 })

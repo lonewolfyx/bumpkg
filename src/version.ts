@@ -71,7 +71,7 @@ export function buildSameMajorRangeSpecifier(specifier: string): string | null {
     if (!currentVersion)
         return null
 
-    return `>=${currentVersion}<${semver.major(currentVersion) + 1}.0.0`
+    return `>=${currentVersion} <${semver.major(currentVersion) + 1}.0.0`
 }
 
 export function shouldProcessSpecifier(specifier: string): boolean {

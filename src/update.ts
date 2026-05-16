@@ -9,6 +9,9 @@ import type {
 import { readProjectManifest, writeProjectManifest } from './config'
 
 function canApplyCandidate(candidate: UpdateCandidate, includeMajor: boolean): boolean {
+    if (candidate.currentSpecifier.trim() === '*')
+        return true
+
     return includeMajor || candidate.updateLevel !== 'major'
 }
 

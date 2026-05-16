@@ -121,4 +121,8 @@ export interface ApplyUpdatesResult {
 export interface CleanupLockResult {
     removed: string[]
     missing: string[]
+    failed: Array<{
+        filePath: string
+        reason: string
+    }>
 }

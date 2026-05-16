@@ -116,6 +116,57 @@ describe('resolveConfig', () => {
         expect(config.optionalDependencies.map(item => item.name)).toContain('multer')
     })
 
+    test('supports package.yml manifests', async () => {
+        const directory = await createTempDir('bumpkg-config-package-yml')
+        const manifestPath = join(directory, 'package.yml')
+
+        try {
+            await writeText(manifestPath, 'name: demo\ndependencies:\n  react: ^18.2.0\n')
+
+            const config = await resolveConfig(directory)
+
+            expect(config.packages).toEqual([manifestPath])
+            expect(config.dependencies.map(item => item.name)).toContain('react')
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
+
+    test('does not hijack standalone packages outside workspace patterns', async () => {
+        const directory = await createTempDir('bumpkg-config-standalone')
+        const standalonePath = join(directory, 'docs/package.json')
+
+        try {
+            await writeJson(join(directory, 'package.json'), {
+                name: 'root',
+                private: true,
+            })
+            await writeText(join(directory, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n')
+            await writeJson(join(directory, 'packages/app/package.json'), {
+                name: 'app',
+                dependencies: {
+                    app: '^1.0.0',
+                },
+            })
+            await writeJson(standalonePath, {
+                name: 'docs',
+                dependencies: {
+                    vitepress: '^1.0.0',
+                },
+            })
+
+            const config = await resolveConfig(join(directory, 'docs'))
+
+            expect(config.rootPackagePath).toBe(standalonePath)
+            expect(config.monorepo).toBe(false)
+            expect(config.packages).toEqual([standalonePath])
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
+
     test('throws when no manifest can be found', async () => {
         const directory = await createTempDir('bumpkg-config-empty')
 
