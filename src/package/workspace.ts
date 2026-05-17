@@ -14,29 +14,22 @@ export function getManifestWorkspacePatterns(manifest: PackageManifest): string[
     ]))
 }
 
-export function normalizeWorkspacePatterns(patterns: string[]): { include: string[], ignore: string[] } {
-    return {
-        include: patterns.filter(pattern => !pattern.startsWith('!')),
-        ignore: patterns
-            .filter(pattern => pattern.startsWith('!'))
-            .map(pattern => pattern.slice(1)),
-    }
-}
-
-export function toManifestGlob(pattern: string): string {
-    const normalizedPattern = pattern.replace(/\\/g, '/').replace(/\/$/, '')
-
-    return PACKAGE_MANIFEST_NAMES.some(name => normalizedPattern.endsWith(name))
-        ? normalizedPattern
-        : `${normalizedPattern}/${PACKAGE_MANIFEST_GLOB}`
-}
-
 export async function collectWorkspacePackagePaths(
     rootDir: string,
     rootPackagePath: string,
     patterns: string[],
 ): Promise<string[]> {
-    const { include, ignore } = normalizeWorkspacePatterns(patterns)
+    const toManifestGlob = (pattern: string): string => {
+        const normalizedPattern = pattern.replace(/\\/g, '/').replace(/\/$/, '')
+
+        return PACKAGE_MANIFEST_NAMES.some(name => normalizedPattern.endsWith(name))
+            ? normalizedPattern
+            : `${normalizedPattern}/${PACKAGE_MANIFEST_GLOB}`
+    }
+    const include = patterns.filter(pattern => !pattern.startsWith('!'))
+    const ignore = patterns
+        .filter(pattern => pattern.startsWith('!'))
+        .map(pattern => pattern.slice(1))
     const scanPatterns = include.length > 0
         ? include.map(toManifestGlob)
         : [`**/${PACKAGE_MANIFEST_GLOB}`]

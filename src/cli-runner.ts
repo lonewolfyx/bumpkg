@@ -24,14 +24,10 @@ export function formatCandidateNextVersion(candidate: Pick<UpdateCandidate, 'nex
         : candidate.nextSpecifier
 }
 
-export function hasCatalogCandidates(candidates: UpdateCandidate[]): boolean {
-    return candidates.some(candidate =>
+export function renderUpdateTable(candidates: UpdateCandidate[]): string {
+    const showCatalogColumns = candidates.some(candidate =>
         candidate.source.source === 'catalog' || candidate.source.source === 'catalogs',
     )
-}
-
-export function renderUpdateTable(candidates: UpdateCandidate[]): string {
-    const showCatalogColumns = hasCatalogCandidates(candidates)
     const headers = showCatalogColumns
         ? [...CLI_BASE_TABLE_HEADERS, ...CLI_CATALOG_TABLE_HEADERS]
         : [...CLI_BASE_TABLE_HEADERS]
@@ -69,15 +65,6 @@ export function renderUpdateTable(candidates: UpdateCandidate[]): string {
     ].join('\n')
 }
 
-export async function confirmDependencyUpdates(): Promise<boolean> {
-    const result = await confirm({
-        message: 'Apply these dependency updates?',
-        initialValue: true,
-    })
-
-    return !isCancel(result) && Boolean(result)
-}
-
 export async function runCliWithOptions(
     options: CommandArgs,
 ): Promise<void> {
@@ -106,7 +93,11 @@ export async function runCliWithOptions(
 
     console.log(renderUpdateTable(checkResult.candidates))
 
-    const confirmed = await confirmDependencyUpdates()
+    const confirmedResult = await confirm({
+        message: 'Apply these dependency updates?',
+        initialValue: true,
+    })
+    const confirmed = !isCancel(confirmedResult) && Boolean(confirmedResult)
     if (!confirmed) {
         console.log('Update cancelled.')
         return

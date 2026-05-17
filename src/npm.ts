@@ -2,6 +2,7 @@ import type {
     PackageVersionQuery,
     PackageVersionResolution,
     RegistryPackageMetadata,
+    ResolvePackageVersions,
     VersionCacheEntry,
     VersionCacheFile,
 } from './types'
@@ -118,6 +119,10 @@ function resolveVersionFromMetadata(
     return stableVersions.filter(version => semver.satisfies(version, query.specifier)).at(-1) ?? null
 }
 
+function getErrorReason(error: unknown, fallback: string): string {
+    return error instanceof Error ? error.message : fallback
+}
+
 async function resolveRequestedRegistryUrl(registryUrl?: string): Promise<string> {
     if (registryUrl)
         return normalizeRegistryUrl(registryUrl)
@@ -186,7 +191,7 @@ export async function getPackageMetadata(
     return metadata
 }
 
-export async function getNpmRegistryMetaData(
+export async function getNpmRegistryMetadata(
     packageName: string,
     registryUrl?: string,
     rootDir?: string,
@@ -194,11 +199,11 @@ export async function getNpmRegistryMetaData(
     return await getPackageMetadata(packageName, registryUrl, rootDir)
 }
 
-export async function resolvePackageVersions(
-    queries: readonly PackageVersionQuery[],
+export const resolvePackageVersions: ResolvePackageVersions = async (
+    queries,
     registryUrl?: string,
     rootDir?: string,
-): Promise<PackageVersionResolution[]> {
+): Promise<PackageVersionResolution[]> => {
     if (queries.length === 0)
         return []
 
@@ -225,22 +230,43 @@ export async function resolvePackageVersions(
         ? await resolveRequestedRegistryUrl(registryUrl)
         : requestedRegistryUrl ?? cache?.registryUrl ?? normalizeRegistryUrl(DEFAULT_REGISTRY_URL)
 
-    const metadataEntries = await mapWithConcurrency(
+    const metadataResults = await mapWithConcurrency(
         missingPackageNames,
         REGISTRY_REQUEST_CONCURRENCY,
-        async packageName => [packageName, await getPackageMetadata(packageName, normalizedRegistryUrl)] as const,
+        async (packageName) => {
+            try {
+                return {
+                    packageName,
+                    metadata: await getPackageMetadata(packageName, normalizedRegistryUrl),
+                }
+            }
+            catch (error) {
+                return {
+                    packageName,
+                    error: getErrorReason(error, 'Failed to fetch package metadata'),
+                }
+            }
+        },
+    )
+    const successfulMetadataEntries = metadataResults.flatMap(result =>
+        result.metadata ? [[result.packageName, result.metadata] as const] : [],
+    )
+    const failedMetadataLookup = new Map(
+        metadataResults
+            .filter(result => result.error)
+            .map(result => [result.packageName, result.error as string]),
     )
     const metadataCache = new Map<string, RegistryPackageMetadata>([
         ...Array.from(packageMetadata.entries()),
-        ...metadataEntries,
+        ...successfulMetadataEntries,
     ])
 
-    if (rootDir && metadataEntries.length > 0) {
+    if (rootDir && successfulMetadataEntries.length > 0) {
         const nextPackages = {
             ...(cache?.registryUrl === normalizedRegistryUrl ? cache.packages : {}),
         } as Record<string, VersionCacheEntry>
 
-        for (const [packageName, metadata] of metadataEntries) {
+        for (const [packageName, metadata] of successfulMetadataEntries) {
             nextPackages[packageName] = {
                 name: metadata.name,
                 fetchedAt: new Date().toISOString(),
@@ -258,6 +284,16 @@ export async function resolvePackageVersions(
     }
 
     return queries.map((query) => {
+        const lookupError = failedMetadataLookup.get(query.name)
+        if (lookupError) {
+            return {
+                error: lookupError,
+                name: query.name,
+                specifier: query.specifier,
+                version: null,
+            }
+        }
+
         const metadata = metadataCache.get(query.name)
         if (!metadata)
             throw new Error(`Missing package metadata for ${query.name}.`)

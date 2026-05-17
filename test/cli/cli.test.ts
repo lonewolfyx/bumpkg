@@ -84,8 +84,8 @@ describe('cli helpers', () => {
 
     test('renders the default table headers for regular dependencies', () => {
         expect(renderUpdateTable([createCandidate()])).toContain('dependencyName')
-        expect(renderUpdateTable([createCandidate()])).toContain('current_Version')
-        expect(renderUpdateTable([createCandidate()])).toContain('new_Version')
+        expect(renderUpdateTable([createCandidate()])).toContain('currentVersion')
+        expect(renderUpdateTable([createCandidate()])).toContain('newVersion')
         expect(renderUpdateTable([createCandidate()])).not.toContain('catalogName')
         expect(renderUpdateTable([createCandidate()])).not.toContain('source')
     })

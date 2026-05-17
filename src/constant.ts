@@ -22,8 +22,8 @@ export const LOCK_FILE_NAMES = [
 
 export const CLI_BASE_TABLE_HEADERS = [
     'dependencyName',
-    'current_Version',
-    'new_Version',
+    'currentVersion',
+    'newVersion',
 ] as const
 
 export const CLI_CATALOG_TABLE_HEADERS = [

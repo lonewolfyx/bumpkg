@@ -88,4 +88,48 @@ describe('npm registry cache', () => {
             await removeTempDir(directory)
         }
     })
+
+    test('keeps partial batch results when one package lookup fails', async () => {
+        const directory = await createTempDir('bumpkg-npm-partial-failure')
+
+        try {
+            vi.mocked(ofetch).mockImplementation(async (input) => {
+                const url = String(input)
+                if (url.includes('react')) {
+                    return {
+                        'name': 'react',
+                        'versions': {
+                            '18.2.0': {},
+                            '18.3.1': {},
+                        },
+                        'dist-tags': {
+                            latest: '18.3.1',
+                        },
+                    }
+                }
+
+                throw new Error('registry timeout')
+            })
+
+            const resolutions = await resolvePackageVersions([
+                { name: 'react', specifier: '^18.0.0' },
+                { name: 'broken', specifier: '^1.0.0' },
+            ], 'https://registry.npmjs.org/', directory)
+
+            expect(resolutions).toEqual([
+                expect.objectContaining({
+                    name: 'react',
+                    version: '18.3.1',
+                }),
+                expect.objectContaining({
+                    error: 'registry timeout',
+                    name: 'broken',
+                    version: null,
+                }),
+            ])
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
 })

@@ -164,6 +164,37 @@ describe('applyDependencyUpdates', () => {
         }
     })
 
+    test('preserves yaml comments when updating workspace entries', async () => {
+        const directory = await createTempDir('bumpkg-update-yaml-comments')
+        const filePath = join(directory, 'pnpm-workspace.yaml')
+
+        try {
+            await writeText(filePath, '# keep this comment\ncatalog:\n  react: ^18.2.0\n')
+
+            await applyUpdatesToFile(filePath, [
+                createCandidate({
+                    name: 'react',
+                    currentVersion: '^18.2.0',
+                    currentSpecifier: '^18.2.0',
+                    newVersion: '18.3.0',
+                    nextSpecifier: '^18.3.0',
+                    source: {
+                        filePath,
+                        source: 'catalog',
+                        manifestFormat: 'yaml',
+                    },
+                }),
+            ])
+
+            const content = await readFile(filePath, 'utf8')
+            expect(content).toContain('# keep this comment')
+            expect(content).toContain('react: ^18.3.0')
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
+
     test('updates dependencies and workspaces catalogs in the same package.json', async () => {
         const directory = await createTempDir('bumpkg-update-bun-catalog')
         const filePath = join(directory, 'package.json')

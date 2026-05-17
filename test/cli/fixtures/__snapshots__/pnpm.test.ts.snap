@@ -2,13 +2,13 @@
 
 exports[`pnpm fixture > matches the fixture snapshot 1`] = `
 {
-  "annotatedStdout": "dependencyName | current_Version | new_Version | filePath    
----------------|-----------------|-------------|-------------
-express        | ^4.1.0          | ^5.1.0      | package.json
-typescript     | ^0.22.6         | ^5.9.3      | package.json
-vite           | ^2.1.0          | ^7.1.9      | package.json
-vue            | ^3.4.0          | ^3.5.13     | package.json
-vue-router     | ^4.0.2          | ^4.5.1      | package.json",
+  "annotatedStdout": "dependencyName | currentVersion | newVersion | filePath    
+---------------|----------------|------------|-------------
+express        | ^4.1.0         | ^5.1.0     | package.json
+typescript     | ^0.22.6        | ^5.9.3     | package.json
+vite           | ^2.1.0         | ^7.1.9     | package.json
+vue            | ^3.4.0         | ^3.5.13    | package.json
+vue-router     | ^4.0.2         | ^4.5.1     | package.json",
   "args": [
     "--major",
   ],
@@ -67,13 +67,13 @@ vue-router     | ^4.0.2          | ^4.5.1      | package.json",
     "yarn.lock": true,
   },
   "stdout": [
-    "dependencyName | current_Version | new_Version
----------------|-----------------|------------
-express        | ^4.1.0          | ^5.1.0     
-typescript     | ^0.22.6         | ^5.9.3     
-vite           | ^2.1.0          | ^7.1.9     
-vue            | ^3.4.0          | ^3.5.13    
-vue-router     | ^4.0.2          | ^4.5.1     ",
+    "dependencyName | currentVersion | newVersion
+---------------|----------------|-----------
+express        | ^4.1.0         | ^5.1.0    
+typescript     | ^0.22.6        | ^5.9.3    
+vite           | ^2.1.0         | ^7.1.9    
+vue            | ^3.4.0         | ^3.5.13   
+vue-router     | ^4.0.2         | ^4.5.1    ",
     "Updated 5 dependencies across 1 files.",
     "No supported lock files found.",
   ],

@@ -2,13 +2,13 @@
 
 exports[`package yml fixture > matches the fixture snapshot 1`] = `
 {
-  "annotatedStdout": "dependencyName | current_Version | new_Version | filePath    
----------------|-----------------|-------------|-------------
-@types/lodash  | ^4.14.0         | ^4.14.191   | package.yaml
-lodash         | ^4.13.19        | ^4.17.21    | package.yaml
-multer         | ^0.1.8          | ^0.1.9      | package.yaml
-react          | ^19.1.1         | ^19.2.0     | package.yaml
-webpack        | ~5.101.3        | ~5.101.5    | package.yaml",
+  "annotatedStdout": "dependencyName | currentVersion | newVersion | filePath    
+---------------|----------------|------------|-------------
+@types/lodash  | ^4.14.0        | ^4.14.191  | package.yaml
+lodash         | ^4.13.19       | ^4.17.21   | package.yaml
+multer         | ^0.1.8         | ^0.1.9     | package.yaml
+react          | ^19.1.1        | ^19.2.0    | package.yaml
+webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
   "args": [],
   "candidates": [
     {
@@ -65,18 +65,18 @@ webpack        | ~5.101.3        | ~5.101.5    | package.yaml",
     "yarn.lock": true,
   },
   "stdout": [
-    "dependencyName | current_Version | new_Version
----------------|-----------------|------------
-@types/lodash  | ^4.14.0         | ^4.14.191  
-lodash         | ^4.13.19        | ^4.17.21   
-multer         | ^0.1.8          | ^0.1.9     
-react          | ^19.1.1         | ^19.2.0    
-webpack        | ~5.101.3        | ~5.101.5   ",
+    "dependencyName | currentVersion | newVersion
+---------------|----------------|-----------
+@types/lodash  | ^4.14.0        | ^4.14.191 
+lodash         | ^4.13.19       | ^4.17.21  
+multer         | ^0.1.8         | ^0.1.9    
+react          | ^19.1.1        | ^19.2.0   
+webpack        | ~5.101.3       | ~5.101.5  ",
     "Updated 5 dependencies across 1 files.",
     "No supported lock files found.",
   ],
   "trackedFiles": {
-    "package.yaml": "name: "@repo/package-yaml-example"
+    "package.yaml": "name: '@repo/package-yaml-example'
 version: 1.0.0
 description: Test package.yaml
 private: false
@@ -85,8 +85,8 @@ dependencies:
   lodash: ^4.17.21
   react: ^19.2.0
 devDependencies:
-  "@types/lodash": ^4.14.191
-  typescript: "3.5"
+  '@types/lodash': ^4.14.191
+  typescript: '3.5'
   webpack: ~5.101.5
 peerDependencies:
   react-dom: ^18.2.0

@@ -1,4 +1,4 @@
-import type { ProjectConfig } from './types'
+import type { DependencyType, ProjectConfig } from './types'
 import { DEPENDENCY_FIELDS } from './constant'
 import { getBunWorkspaceConfig } from './package/bun'
 import { extractCatalogEntries } from './package/catalog'
@@ -16,15 +16,19 @@ export async function resolveConfig(cwd: string = process.cwd()): Promise<Projec
         })),
     )
 
-    const dependencies = manifests.flatMap(({ packagePath, manifest }) =>
-        collectDependencyEntries(packagePath, manifest, DEPENDENCY_FIELDS[0]),
-    )
-    const devDependencies = manifests.flatMap(({ packagePath, manifest }) =>
-        collectDependencyEntries(packagePath, manifest, DEPENDENCY_FIELDS[1]),
-    )
-    const optionalDependencies = manifests.flatMap(({ packagePath, manifest }) =>
-        collectDependencyEntries(packagePath, manifest, DEPENDENCY_FIELDS[2]),
-    )
+    const dependenciesByType = DEPENDENCY_FIELDS.reduce<Record<DependencyType, ProjectConfig['dependencies']>>((accumulator, field) => {
+        accumulator[field] = manifests.flatMap(({ packagePath, manifest }) =>
+            collectDependencyEntries(packagePath, manifest, field),
+        )
+        return accumulator
+    }, {
+        dependencies: [],
+        devDependencies: [],
+        optionalDependencies: [],
+    })
+    const dependencies = dependenciesByType.dependencies
+    const devDependencies = dependenciesByType.devDependencies
+    const optionalDependencies = dependenciesByType.optionalDependencies
     const bunWorkspaceConfig = getBunWorkspaceConfig(packageContext.rootManifest)
     const catalogDependencies = [
         ...(bunWorkspaceConfig ? extractCatalogEntries(packageContext.rootPackagePath, bunWorkspaceConfig) : []),
