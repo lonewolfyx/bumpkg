@@ -5,13 +5,9 @@ import { extractCatalogEntries } from './package/catalog'
 import { collectDependencyEntries } from './package/dependency'
 import { readProjectManifest } from './package/manifest'
 import { resolvePackageContext } from './package/project'
-import { resolveRegistryUrl } from './registry'
 
 export async function resolveConfig(cwd: string = process.cwd()): Promise<ProjectConfig> {
-    const [packageContext, registryUrl] = await Promise.all([
-        resolvePackageContext(cwd),
-        resolveRegistryUrl(),
-    ])
+    const packageContext = await resolvePackageContext(cwd)
 
     const manifests = await Promise.all(
         packageContext.packages.map(async packagePath => ({
@@ -43,7 +39,6 @@ export async function resolveConfig(cwd: string = process.cwd()): Promise<Projec
     return {
         cwd,
         rootDir: packageContext.rootDir,
-        registryUrl,
         rootPackagePath: packageContext.rootPackagePath,
         monorepo: packageContext.monorepo,
         packages: packageContext.packages,

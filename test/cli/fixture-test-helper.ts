@@ -4,7 +4,7 @@ import { basename, dirname, join, relative } from 'node:path'
 import { confirm } from '@clack/prompts'
 import semver from 'semver'
 import { checkUpdateDependencies } from '@/check'
-import { runCliWithOptions } from '@/cli-runner'
+import { formatCandidateNextVersion, runCliWithOptions } from '@/cli-runner'
 import { resolveConfig } from '@/config'
 import * as npmModule from '@/npm'
 import { createTempDir, removeTempDir } from '../helpers'
@@ -42,17 +42,32 @@ function renderAnnotatedStdout(candidates: Array<{
     filePath: string
     name: string
     nextSpecifier: string
+    availableMajorNodeRequirement?: string
+    availableMajorVersion?: string
     source: string
+    targetNodeRequirement?: string
 }>): string {
-    const headers = ['dependencyName', 'current_Version', 'new_Version', 'source', 'catalogName', 'filePath']
-    const rows = candidates.map(candidate => [
-        candidate.name,
-        candidate.currentSpecifier,
-        candidate.nextSpecifier,
-        candidate.source,
-        candidate.catalogName ?? '-',
-        candidate.filePath,
-    ])
+    const showCatalogColumns = candidates.some(candidate => candidate.source === 'catalog' || candidate.source === 'catalogs')
+    const headers = showCatalogColumns
+        ? ['dependencyName', 'current_Version', 'new_Version', 'source', 'catalogName', 'filePath']
+        : ['dependencyName', 'current_Version', 'new_Version', 'filePath']
+    const rows = candidates.map((candidate) => {
+        const baseColumns = [
+            candidate.name,
+            candidate.currentSpecifier,
+            formatCandidateNextVersion(candidate),
+        ]
+
+        if (!showCatalogColumns)
+            return [...baseColumns, candidate.filePath]
+
+        return [
+            ...baseColumns,
+            candidate.source,
+            candidate.catalogName ?? '-',
+            candidate.filePath,
+        ]
+    })
 
     const widths = headers.map((header, columnIndex) =>
         Math.max(header.length, ...rows.map(row => row[columnIndex]?.length ?? 0)),
@@ -96,6 +111,7 @@ export function createVersionResolutionLoader(metadata: FixtureScenario['metadat
                 : stableVersions.filter(version => semver.satisfies(version, normalizedSpecifier)).at(-1) ?? null
 
             return {
+                metadata: result,
                 name,
                 specifier,
                 version,
@@ -183,6 +199,9 @@ export async function runFixtureScenario(scenario: FixtureScenario) {
             nextSpecifier: candidate.nextSpecifier,
             source: candidate.source.source,
             updateLevel: candidate.updateLevel,
+            ...(candidate.availableMajorNodeRequirement ? { availableMajorNodeRequirement: candidate.availableMajorNodeRequirement } : {}),
+            ...(candidate.availableMajorVersion ? { availableMajorVersion: candidate.availableMajorVersion } : {}),
+            ...(candidate.targetNodeRequirement ? { targetNodeRequirement: candidate.targetNodeRequirement } : {}),
         }))
 
         return {

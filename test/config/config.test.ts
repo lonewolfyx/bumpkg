@@ -2,6 +2,7 @@ import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ofetch } from 'ofetch'
 import { resolveConfig } from '@/config'
+import { resolvePackageVersions } from '@/npm'
 import { extractCatalogEntries } from '@/package/catalog'
 import { createTempDir, removeTempDir, writeJson, writeText } from '../helpers'
 
@@ -185,7 +186,7 @@ describe('resolveConfig', () => {
         }
     })
 
-    test('detects the fastest registry when no override exists', async () => {
+    test('does not probe registries during config resolution', async () => {
         const directory = await createTempDir('bumpkg-config-registry')
 
         try {
@@ -196,18 +197,50 @@ describe('resolveConfig', () => {
                 },
             })
 
-            const fetchSpy = vi.mocked(ofetch).mockImplementation(async (url) => {
-                const requestUrl = typeof url === 'string' ? url : url.toString()
-                if (requestUrl.startsWith('https://registry.npmmirror.com/'))
-                    return {}
-                throw new Error('unreachable')
-            })
+            const fetchSpy = vi.mocked(ofetch)
 
             const config = await resolveConfig(directory)
 
-            expect(config.registryUrl).toBe('https://registry.npmmirror.com/')
-            expect(fetchSpy).toHaveBeenCalledTimes(3)
+            expect(config.rootDir).toBe(directory)
+            expect(fetchSpy).not.toHaveBeenCalled()
             await expect(access(join(directory, 'node_modules/.bumpkg/registry.json'))).rejects.toThrow()
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
+
+    test('probes registries lazily when package metadata is not cached', async () => {
+        const directory = await createTempDir('bumpkg-config-lazy-registry')
+
+        try {
+            const fetchSpy = vi.mocked(ofetch).mockImplementation(async (url) => {
+                const requestUrl = typeof url === 'string' ? url : url.toString()
+                if (requestUrl.endsWith('/react/latest'))
+                    return {}
+                if (requestUrl.startsWith('https://registry.npmmirror.com/react')) {
+                    return {
+                        'name': 'react',
+                        'versions': {
+                            '18.2.0': {},
+                            '18.3.1': {},
+                        },
+                        'dist-tags': {
+                            latest: '18.3.1',
+                        },
+                    }
+                }
+                throw new Error('unreachable')
+            })
+
+            const resolutions = await resolvePackageVersions(
+                [{ name: 'react', specifier: '^18.0.0' }],
+                undefined,
+                directory,
+            )
+
+            expect(resolutions[0]?.version).toBe('18.3.1')
+            expect(fetchSpy).toHaveBeenCalledTimes(4)
         }
         finally {
             await removeTempDir(directory)

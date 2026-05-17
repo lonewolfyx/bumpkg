@@ -2,6 +2,7 @@ import type { RegistryPackageMetadata } from '@/types'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { confirm } from '@clack/prompts'
+import { ofetch } from 'ofetch'
 import { runCliWithOptions } from '@/cli-runner'
 import * as npmModule from '@/npm'
 import { createTempDir, removeTempDir, writeJson, writeText } from '../helpers'
@@ -183,6 +184,48 @@ describe('cli integration', () => {
             await runCliWithOptions({ c: '', cwd: directory, major: false, _: [''] })
 
             expect(await readFile(packagePath, 'utf8')).toContain('"lodash": "^1.0.0"')
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
+
+    test('uses local version cache without any network calls', async () => {
+        const directory = await createTempDir('bumpkg-cli-cache-only')
+        const output: string[] = []
+
+        try {
+            await writeJson(join(directory, 'package.json'), {
+                name: 'demo',
+                dependencies: {
+                    react: '^18.2.0',
+                },
+            })
+            await writeJson(join(directory, 'node_modules/.bumpkg/version.json'), {
+                registryUrl: 'https://registry.npmjs.org/',
+                updatedAt: new Date().toISOString(),
+                packages: {
+                    react: {
+                        name: 'react',
+                        fetchedAt: new Date().toISOString(),
+                        versions: ['18.2.0', '18.3.1'],
+                        distTags: {
+                            latest: '18.3.1',
+                        },
+                    },
+                },
+            })
+
+            vi.mocked(confirm).mockResolvedValue(false)
+            vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
+            vi.spyOn(console, 'error').mockImplementation(() => {})
+            const fetchSpy = vi.mocked(ofetch)
+
+            await runCliWithOptions({ c: '', cwd: directory, major: false, _: [''] })
+
+            expect(fetchSpy).not.toHaveBeenCalled()
+            expect(output[0]).toContain('react')
+            expect(output).toContain('Update cancelled.')
         }
         finally {
             await removeTempDir(directory)

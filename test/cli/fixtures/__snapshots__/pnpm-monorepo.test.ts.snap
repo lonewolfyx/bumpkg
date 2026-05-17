@@ -2,16 +2,16 @@
 
 exports[`pnpm monorepo fixture > matches the fixture snapshot 1`] = `
 {
-  "annotatedStdout": "dependencyName  | current_Version | new_Version | source          | catalogName | filePath                 
-----------------|-----------------|-------------|-----------------|-------------|--------------------------
-@types/lodash   | ^4.14.0         | ^4.14.191   | devDependencies | -           | package.json             
-lodash          | ^4.13.19        | ^4.17.21    | dependencies    | -           | package.json             
-lodash          | ^4.13.19        | ^4.17.21    | dependencies    | -           | packages/bar/package.json
-lodash          | ^4.17.10        | ^4.17.21    | dependencies    | -           | packages/foo/package.json
-multer          | ^0.1.8          | ^0.1.9      | dependencies    | -           | package.json             
-react-bootstrap | ^0.22.6         | ^0.22.7     | dependencies    | -           | package.json             
-webpack         | ~1.9.10         | ~1.12.0     | dependencies    | -           | package.json             
-webpack         | ~1.9.10         | ~1.12.0     | dependencies    | -           | packages/foo/package.json",
+  "annotatedStdout": "dependencyName  | current_Version | new_Version                 | filePath                 
+----------------|-----------------|-----------------------------|--------------------------
+@types/lodash   | ^4.14.0         | ^4.14.191                   | package.json             
+lodash          | ^4.13.19        | ^4.17.21                    | package.json             
+lodash          | ^4.13.19        | ^4.17.21                    | packages/bar/package.json
+lodash          | ^4.17.10        | ^4.17.21                    | packages/foo/package.json
+multer          | ^0.1.8          | ^0.1.9                      | package.json             
+react-bootstrap | ^0.22.6         | ^0.22.7                     | package.json             
+webpack         | ~1.9.10         | ~1.12.0 (5.101.5 available) | package.json             
+webpack         | ~1.9.10         | ~1.12.0 (5.101.5 available) | packages/foo/package.json",
   "args": [],
   "candidates": [
     {
@@ -69,6 +69,7 @@ webpack         | ~1.9.10         | ~1.12.0     | dependencies    | -           
       "updateLevel": "patch",
     },
     {
+      "availableMajorVersion": "5.101.5",
       "catalogName": null,
       "currentSpecifier": "~1.9.10",
       "filePath": "package.json",
@@ -78,6 +79,7 @@ webpack         | ~1.9.10         | ~1.12.0     | dependencies    | -           
       "updateLevel": "minor",
     },
     {
+      "availableMajorVersion": "5.101.5",
       "catalogName": null,
       "currentSpecifier": "~1.9.10",
       "filePath": "packages/foo/package.json",
@@ -95,16 +97,16 @@ webpack         | ~1.9.10         | ~1.12.0     | dependencies    | -           
     "yarn.lock": true,
   },
   "stdout": [
-    "dependencyName  | current_Version | new_Version
-----------------|-----------------|------------
-@types/lodash   | ^4.14.0         | ^4.14.191  
-lodash          | ^4.13.19        | ^4.17.21   
-lodash          | ^4.13.19        | ^4.17.21   
-lodash          | ^4.17.10        | ^4.17.21   
-multer          | ^0.1.8          | ^0.1.9     
-react-bootstrap | ^0.22.6         | ^0.22.7    
-webpack         | ~1.9.10         | ~1.12.0    
-webpack         | ~1.9.10         | ~1.12.0    ",
+    "dependencyName  | current_Version | new_Version                
+----------------|-----------------|----------------------------
+@types/lodash   | ^4.14.0         | ^4.14.191                  
+lodash          | ^4.13.19        | ^4.17.21                   
+lodash          | ^4.13.19        | ^4.17.21                   
+lodash          | ^4.17.10        | ^4.17.21                   
+multer          | ^0.1.8          | ^0.1.9                     
+react-bootstrap | ^0.22.6         | ^0.22.7                    
+webpack         | ~1.9.10         | ~1.12.0 (5.101.5 available)
+webpack         | ~1.9.10         | ~1.12.0 (5.101.5 available)",
     "Updated 8 dependencies across 3 files.",
     "No supported lock files found.",
   ],

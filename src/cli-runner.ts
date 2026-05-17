@@ -2,18 +2,57 @@ import type { CommandArgs, UpdateCandidate } from './types'
 import { confirm, isCancel } from '@clack/prompts'
 import { checkUpdateDependencies } from './check'
 import { resolveConfig } from './config'
-import { CLI_TABLE_HEADERS } from './constant'
+import { CLI_BASE_TABLE_HEADERS, CLI_CATALOG_TABLE_HEADERS } from './constant'
 import { cleanupLockFiles } from './lock'
 import { applyDependencyUpdates } from './update'
 
-export function renderUpdateTable(candidates: UpdateCandidate[]): string {
-    const rows = candidates.map(candidate => [
-        candidate.name,
-        candidate.currentSpecifier,
-        candidate.nextSpecifier,
-    ])
+export function formatCandidateNextVersion(candidate: Pick<UpdateCandidate, 'nextSpecifier' | 'targetNodeRequirement' | 'availableMajorVersion' | 'availableMajorNodeRequirement'>): string {
+    const notes: string[] = []
 
-    const widths = CLI_TABLE_HEADERS.map((header, columnIndex) =>
+    if (candidate.targetNodeRequirement)
+        notes.push(`requires node ${candidate.targetNodeRequirement}`)
+
+    if (candidate.availableMajorVersion) {
+        const availableMajorSummary = candidate.availableMajorNodeRequirement
+            ? `${candidate.availableMajorVersion} available, requires node ${candidate.availableMajorNodeRequirement}`
+            : `${candidate.availableMajorVersion} available`
+        notes.push(availableMajorSummary)
+    }
+
+    return notes.length > 0
+        ? `${candidate.nextSpecifier} (${notes.join('; ')})`
+        : candidate.nextSpecifier
+}
+
+export function hasCatalogCandidates(candidates: UpdateCandidate[]): boolean {
+    return candidates.some(candidate =>
+        candidate.source.source === 'catalog' || candidate.source.source === 'catalogs',
+    )
+}
+
+export function renderUpdateTable(candidates: UpdateCandidate[]): string {
+    const showCatalogColumns = hasCatalogCandidates(candidates)
+    const headers = showCatalogColumns
+        ? [...CLI_BASE_TABLE_HEADERS, ...CLI_CATALOG_TABLE_HEADERS]
+        : [...CLI_BASE_TABLE_HEADERS]
+    const rows = candidates.map((candidate) => {
+        const baseColumns = [
+            candidate.name,
+            candidate.currentSpecifier,
+            formatCandidateNextVersion(candidate),
+        ]
+
+        if (!showCatalogColumns)
+            return baseColumns
+
+        return [
+            ...baseColumns,
+            candidate.source.source,
+            candidate.source.catalogName ?? '-',
+        ]
+    })
+
+    const widths = headers.map((header, columnIndex) =>
         Math.max(header.length, ...rows.map(row => row[columnIndex]?.length ?? 0)),
     )
 
@@ -24,7 +63,7 @@ export function renderUpdateTable(candidates: UpdateCandidate[]): string {
     const divider = widths.map(width => '-'.repeat(width)).join('-|-')
 
     return [
-        formatRow([...CLI_TABLE_HEADERS]),
+        formatRow(headers),
         divider,
         ...rows.map(formatRow),
     ].join('\n')

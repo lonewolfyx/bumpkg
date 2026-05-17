@@ -2,13 +2,13 @@
 
 exports[`package yml fixture > matches the fixture snapshot 1`] = `
 {
-  "annotatedStdout": "dependencyName | current_Version | new_Version | source               | catalogName | filePath    
----------------|-----------------|-------------|----------------------|-------------|-------------
-@types/lodash  | ^4.14.0         | ^4.14.191   | devDependencies      | -           | package.yaml
-lodash         | ^4.13.19        | ^4.17.21    | dependencies         | -           | package.yaml
-multer         | ^0.1.8          | ^0.1.9      | optionalDependencies | -           | package.yaml
-react          | ^19.1.1         | ^19.2.0     | dependencies         | -           | package.yaml
-webpack        | ~5.101.3        | ~5.101.5    | devDependencies      | -           | package.yaml",
+  "annotatedStdout": "dependencyName | current_Version | new_Version | filePath    
+---------------|-----------------|-------------|-------------
+@types/lodash  | ^4.14.0         | ^4.14.191   | package.yaml
+lodash         | ^4.13.19        | ^4.17.21    | package.yaml
+multer         | ^0.1.8          | ^0.1.9      | package.yaml
+react          | ^19.1.1         | ^19.2.0     | package.yaml
+webpack        | ~5.101.3        | ~5.101.5    | package.yaml",
   "args": [],
   "candidates": [
     {

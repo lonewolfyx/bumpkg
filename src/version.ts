@@ -52,6 +52,22 @@ export function resolveLatestVersion(metadata: RegistryPackageMetadata): string 
     return getSortedStableVersions(metadata.versions).at(-1) ?? null
 }
 
+export function resolveVersionNodeRequirement(
+    metadata: RegistryPackageMetadata,
+    version: string,
+): string | null {
+    return metadata.enginesByVersion?.[version]?.node?.trim() || null
+}
+
+export function resolveAvailableMajorVersion(
+    currentVersion: string,
+    metadata: RegistryPackageMetadata,
+): string | null {
+    return getSortedStableVersions(metadata.versions)
+        .filter(version => semver.gt(version, currentVersion) && semver.major(version) > semver.major(currentVersion))
+        .at(-1) ?? null
+}
+
 export function buildNextSpecifier(currentSpecifier: string, newVersion: string): string {
     const trimmed = currentSpecifier.trim()
 

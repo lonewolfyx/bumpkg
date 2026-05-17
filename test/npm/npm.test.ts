@@ -18,7 +18,11 @@ describe('npm registry cache', () => {
                 'name': 'react',
                 'versions': {
                     '18.2.0': {},
-                    '18.3.1': {},
+                    '18.3.1': {
+                        engines: {
+                            node: '>=18.0.0',
+                        },
+                    },
                 },
                 'dist-tags': {
                     latest: '18.3.1',
@@ -32,6 +36,7 @@ describe('npm registry cache', () => {
             const cache = await readJson<VersionCacheFile>(join(directory, 'node_modules/.bumpkg/version.json'))
             expect(cache.registryUrl).toBe('https://registry.npmjs.org/')
             expect(cache.packages.react?.distTags.latest).toBe('18.3.1')
+            expect(cache.packages.react?.enginesByVersion?.['18.3.1']?.node).toBe('>=18.0.0')
         }
         finally {
             await removeTempDir(directory)
@@ -53,6 +58,11 @@ describe('npm registry cache', () => {
                         distTags: {
                             latest: '18.3.1',
                         },
+                        enginesByVersion: {
+                            '18.3.1': {
+                                node: '>=18.0.0',
+                            },
+                        },
                     },
                 },
             })
@@ -64,11 +74,14 @@ describe('npm registry cache', () => {
                 directory,
             )
 
-            expect(resolutions).toEqual([{
+            expect(resolutions).toEqual([expect.objectContaining({
+                metadata: expect.objectContaining({
+                    name: 'react',
+                }),
                 name: 'react',
                 specifier: '^18.0.0',
                 version: '18.3.1',
-            }])
+            })])
             expect(fetchSpy).not.toHaveBeenCalled()
         }
         finally {

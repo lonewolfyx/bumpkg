@@ -8,16 +8,46 @@ import type {
     RegistryPackageMetadata,
     UpdateCandidate,
 } from './types'
-import { getNpmRegistryMetaData, resolvePackageVersions } from './npm'
+import { resolvePackageVersions } from './npm'
 import { isWildcardSpecifier, sortUpdateCandidates, toDependencyLocation } from './utils'
 import {
     buildNextSpecifier,
     buildSameMajorRangeSpecifier,
     detectUpdateLevel,
     getCurrentVersionFromSpecifier,
+    resolveAvailableMajorVersion,
+    resolveVersionNodeRequirement,
     selectTargetVersion,
     shouldProcessSpecifier,
 } from './version'
+
+function enrichUpdateCandidate(
+    candidate: UpdateCandidate,
+    metadata?: RegistryPackageMetadata,
+): UpdateCandidate {
+    if (!metadata)
+        return candidate
+
+    const currentVersion = getCurrentVersionFromSpecifier(candidate.currentSpecifier)
+    if (!currentVersion)
+        return candidate
+
+    const currentNodeRequirement = resolveVersionNodeRequirement(metadata, currentVersion)
+    const targetNodeRequirement = resolveVersionNodeRequirement(metadata, candidate.newVersion)
+
+    if (targetNodeRequirement && targetNodeRequirement !== currentNodeRequirement)
+        candidate.targetNodeRequirement = targetNodeRequirement
+
+    if (candidate.updateLevel !== 'major') {
+        const availableMajorVersion = resolveAvailableMajorVersion(currentVersion, metadata)
+        if (availableMajorVersion) {
+            candidate.availableMajorVersion = availableMajorVersion
+            candidate.availableMajorNodeRequirement = resolveVersionNodeRequirement(metadata, availableMajorVersion) ?? undefined
+        }
+    }
+
+    return candidate
+}
 
 export function createUpdateCandidate(
     entry: ProjectConfig['allDependencies'][number],
@@ -31,7 +61,7 @@ export function createUpdateCandidate(
     if (!selection)
         return null
 
-    return {
+    return enrichUpdateCandidate({
         name: entry.name,
         currentVersion: entry.version,
         currentSpecifier: entry.version,
@@ -39,7 +69,7 @@ export function createUpdateCandidate(
         nextSpecifier: selection.nextSpecifier,
         updateLevel: selection.updateLevel,
         source: toDependencyLocation(entry),
-    }
+    }, metadata)
 }
 
 function toQueryKey(name: string, specifier: string): string {
@@ -62,7 +92,7 @@ function createUpdateCandidateFromResolution(
         return null
 
     if (isWildcardSpecifier(entry.version)) {
-        return {
+        return enrichUpdateCandidate({
             name: entry.name,
             currentVersion: entry.version,
             currentSpecifier: entry.version,
@@ -70,7 +100,7 @@ function createUpdateCandidateFromResolution(
             nextSpecifier: buildNextSpecifier(entry.version, newVersion),
             updateLevel: detectUpdateLevel('0.0.0', newVersion) ?? 'patch',
             source: toDependencyLocation(entry),
-        }
+        }, resolution.metadata)
     }
 
     const currentVersion = getCurrentVersionFromSpecifier(entry.version)
@@ -81,7 +111,7 @@ function createUpdateCandidateFromResolution(
     if (!updateLevel)
         return null
 
-    return {
+    return enrichUpdateCandidate({
         name: entry.name,
         currentVersion: entry.version,
         currentSpecifier: entry.version,
@@ -89,7 +119,7 @@ function createUpdateCandidateFromResolution(
         nextSpecifier: buildNextSpecifier(entry.version, newVersion),
         updateLevel,
         source: toDependencyLocation(entry),
-    }
+    }, resolution.metadata)
 }
 
 async function checkUpdateDependenciesWithResolvedVersions(
@@ -108,7 +138,7 @@ async function checkUpdateDependenciesWithResolvedVersions(
         })
     }
 
-    const resolutions = await resolveBatch(Array.from(uniqueQueries.values()), config.registryUrl, config.rootDir)
+    const resolutions = await resolveBatch(Array.from(uniqueQueries.values()), undefined, config.rootDir)
     const resolutionMap = new Map(
         resolutions.map(resolution => [toQueryKey(resolution.name, resolution.specifier), resolution]),
     )
@@ -144,7 +174,7 @@ async function checkUpdateDependenciesWithMetadata(
     const errors: CheckUpdateResult['errors'] = []
 
     const metadataResults = await Promise.allSettled(
-        uniquePackageNames.map(async packageName => [packageName, await fetchPackageMetadata(packageName, config.registryUrl, config.rootDir)] as const),
+        uniquePackageNames.map(async packageName => [packageName, await fetchPackageMetadata(packageName, undefined, config.rootDir)] as const),
     )
 
     for (const result of metadataResults) {
@@ -192,7 +222,7 @@ export async function checkUpdateDependencies(
 ): Promise<CheckUpdateResult> {
     const includeMajor = options.includeMajor ?? false
     const hasCustomResolver = options.resolvePackageVersions !== undefined
-    const fetchPackageMetadata = options.fetchPackageMetadata ?? getNpmRegistryMetaData
+    const fetchPackageMetadata = options.fetchPackageMetadata
     const resolveBatch = options.resolvePackageVersions ?? resolvePackageVersions
 
     try {
