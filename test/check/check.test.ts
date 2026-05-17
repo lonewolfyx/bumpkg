@@ -5,7 +5,6 @@ function createProjectConfig(entries: DependencyEntry[]): ProjectConfig {
     return {
         cwd: '/project',
         rootDir: '/project',
-        registryUrl: 'https://registry.npmjs.org/',
         rootPackagePath: '/project/package.json',
         monorepo: false,
         packages: ['/project/package.json'],
@@ -43,6 +42,29 @@ describe('checkUpdateDependencies', () => {
                 newVersion: '1.1.0',
                 nextSpecifier: '^1.1.0',
                 updateLevel: 'minor',
+            }),
+        )
+    })
+
+    test('createUpdateCandidate exposes higher major availability and node requirements', () => {
+        const metadata: RegistryPackageMetadata = {
+            name: '@antfu/eslint-config',
+            versions: ['7.2.0', '7.7.3', '9.0.0'],
+            distTags: {
+                latest: '9.0.0',
+            },
+            enginesByVersion: {
+                '9.0.0': {
+                    node: '>=18.18.0',
+                },
+            },
+        }
+
+        expect(createUpdateCandidate(createEntry('@antfu/eslint-config', '^7.2.0'), metadata, false)).toEqual(
+            expect.objectContaining({
+                nextSpecifier: '^7.7.3',
+                availableMajorVersion: '9.0.0',
+                availableMajorNodeRequirement: '>=18.18.0',
             }),
         )
     })
@@ -204,7 +226,7 @@ describe('checkUpdateDependencies', () => {
                 name: 'shared',
                 specifier: '>=1.0.0 <2.0.0',
             },
-        ], 'https://registry.npmjs.org/', '/project')
+        ], undefined, '/project')
         expect(result.candidates).toHaveLength(2)
     })
 
@@ -226,6 +248,37 @@ describe('checkUpdateDependencies', () => {
         expect(result.candidates[0]).toEqual(expect.objectContaining({
             updateLevel: 'major',
             nextSpecifier: '^2.0.0',
+        }))
+    })
+
+    test('enriches resolved candidates with major availability metadata', async () => {
+        const result = await checkUpdateDependencies(
+            createProjectConfig([createEntry('@antfu/eslint-config', '^8.2.0')]),
+            {
+                resolvePackageVersions: vi.fn().mockResolvedValue([
+                    {
+                        name: '@antfu/eslint-config',
+                        metadata: {
+                            name: '@antfu/eslint-config',
+                            versions: ['8.2.0', '8.3.0', '9.0.0'],
+                            distTags: { latest: '9.0.0' },
+                            enginesByVersion: {
+                                '9.0.0': {
+                                    node: '>=18.18.0',
+                                },
+                            },
+                        },
+                        specifier: '>=8.2.0 <9.0.0',
+                        version: '8.3.0',
+                    },
+                ]),
+            },
+        )
+
+        expect(result.candidates[0]).toEqual(expect.objectContaining({
+            nextSpecifier: '^8.3.0',
+            availableMajorVersion: '9.0.0',
+            availableMajorNodeRequirement: '>=18.18.0',
         }))
     })
 

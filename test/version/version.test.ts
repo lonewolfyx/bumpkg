@@ -5,7 +5,9 @@ import {
     buildSameMajorRangeSpecifier,
     detectUpdateLevel,
     getCurrentVersionFromSpecifier,
+    resolveAvailableMajorVersion,
     resolveLatestVersion,
+    resolveVersionNodeRequirement,
     selectTargetVersion,
     stripVersionPrefix,
 } from '@/version'
@@ -15,6 +17,14 @@ const metadata: RegistryPackageMetadata = {
     versions: ['1.0.0', '1.2.0', '1.2.5', '2.0.0'],
     distTags: {
         latest: '2.0.0',
+    },
+    enginesByVersion: {
+        '1.2.5': {
+            node: '>=18.0.0',
+        },
+        '2.0.0': {
+            node: '>=20.0.0',
+        },
     },
 }
 
@@ -39,6 +49,16 @@ describe('version helpers', () => {
 
     test('resolveLatestVersion prefers latest dist-tag', () => {
         expect(resolveLatestVersion(metadata)).toBe('2.0.0')
+    })
+
+    test('resolveVersionNodeRequirement reads the version engines data', () => {
+        expect(resolveVersionNodeRequirement(metadata, '1.2.5')).toBe('>=18.0.0')
+        expect(resolveVersionNodeRequirement(metadata, '1.0.0')).toBeNull()
+    })
+
+    test('resolveAvailableMajorVersion returns the latest stable higher major', () => {
+        expect(resolveAvailableMajorVersion('1.0.0', metadata)).toBe('2.0.0')
+        expect(resolveAvailableMajorVersion('2.0.0', metadata)).toBeNull()
     })
 
     test('buildNextSpecifier preserves supported prefixes', () => {

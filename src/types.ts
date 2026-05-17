@@ -49,7 +49,6 @@ export interface DependencyEntry extends DependencyLocation {
 export interface ProjectConfig {
     cwd: string
     rootDir: string
-    registryUrl: string
     rootPackagePath: PackageJsonPath
     monorepo: boolean
     packages: PackageJsonPath[]
@@ -85,6 +84,9 @@ export interface RegistryPackageMetadata {
     name: string
     versions: string[]
     distTags: Record<string, string | undefined>
+    enginesByVersion?: Record<string, {
+        node?: string
+    }>
 }
 
 export interface PackageVersionQuery {
@@ -94,6 +96,7 @@ export interface PackageVersionQuery {
 
 export interface PackageVersionResolution extends PackageVersionQuery {
     version: string | null
+    metadata?: RegistryPackageMetadata
 }
 
 export interface CheckUpdateOptions {
@@ -116,6 +119,9 @@ export interface UpdateCandidate {
     newVersion: string
     nextSpecifier: string
     updateLevel: UpdateLevel
+    targetNodeRequirement?: string
+    availableMajorVersion?: string
+    availableMajorNodeRequirement?: string
     source: DependencyLocation
 }
 
@@ -152,6 +158,9 @@ export interface VersionCacheEntry {
     fetchedAt: string
     versions: string[]
     distTags: Record<string, string | undefined>
+    enginesByVersion?: Record<string, {
+        node?: string
+    }>
 }
 
 export interface VersionCacheFile {

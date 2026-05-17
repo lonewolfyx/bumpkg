@@ -15,7 +15,6 @@ function createProjectConfig(): ProjectConfig {
     return {
         cwd: '/project',
         rootDir: '/project',
-        registryUrl: 'https://registry.npmjs.org/',
         rootPackagePath: '/project/package.json',
         monorepo: false,
         packages: ['/project/package.json'],
@@ -83,10 +82,36 @@ describe('cli helpers', () => {
         expect(mocks.resolveSpy).toHaveBeenCalledWith('/tmp/demo')
     })
 
-    test('renders the fixed table headers', () => {
+    test('renders the default table headers for regular dependencies', () => {
         expect(renderUpdateTable([createCandidate()])).toContain('dependencyName')
         expect(renderUpdateTable([createCandidate()])).toContain('current_Version')
         expect(renderUpdateTable([createCandidate()])).toContain('new_Version')
+        expect(renderUpdateTable([createCandidate()])).not.toContain('catalogName')
+        expect(renderUpdateTable([createCandidate()])).not.toContain('source')
+    })
+
+    test('renders major availability and catalog details in the table when catalog entries exist', () => {
+        const table = renderUpdateTable([{
+            ...createCandidate(),
+            name: '@antfu/eslint-config',
+            currentVersion: '^7.2.0',
+            currentSpecifier: '^7.2.0',
+            newVersion: '7.7.3',
+            nextSpecifier: '^7.7.3',
+            availableMajorVersion: '9.0.0',
+            availableMajorNodeRequirement: '>=18.18.0',
+            source: {
+                ...createCandidate().source,
+                source: 'catalogs',
+                catalogName: 'lint',
+                filePath: '/project/pnpm-workspace.yaml',
+            },
+        }])
+
+        expect(table).toContain('^7.7.3 (9.0.0 available, requires node >=18.18.0)')
+        expect(table).toContain('catalogs')
+        expect(table).toContain('lint')
+        expect(table).not.toContain('/project/pnpm-workspace.yaml')
     })
 
     test('prints a clear message when there are no updates', async () => {

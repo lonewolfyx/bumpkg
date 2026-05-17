@@ -10,12 +10,17 @@ import { join } from 'node:path'
 import { ofetch } from 'ofetch'
 import semver from 'semver'
 import { DEFAULT_REGISTRY_URL } from './constant'
+import { resolveRegistryUrl } from './registry'
 import { normalizeRegistryUrl, toPrettyJson } from './utils'
 import { getSortedStableVersions, resolveLatestVersion } from './version'
 
 interface NpmRegistryResponse {
     'name'?: string
-    'versions'?: Record<string, unknown>
+    'versions'?: Record<string, {
+        engines?: {
+            node?: string
+        }
+    }>
     'dist-tags'?: Record<string, string | undefined>
 }
 
@@ -68,7 +73,15 @@ async function readVersionCache(rootDir?: string): Promise<VersionCacheFile | nu
         return {
             registryUrl: normalizeRegistryUrl(cache.registryUrl),
             updatedAt: cache.updatedAt,
-            packages: cache.packages,
+            packages: Object.fromEntries(
+                Object.entries(cache.packages).map(([packageName, entry]) => [
+                    packageName,
+                    {
+                        ...entry,
+                        enginesByVersion: entry.enginesByVersion ?? {},
+                    },
+                ]),
+            ),
         }
     }
     catch {
@@ -105,24 +118,31 @@ function resolveVersionFromMetadata(
     return stableVersions.filter(version => semver.satisfies(version, query.specifier)).at(-1) ?? null
 }
 
+async function resolveRequestedRegistryUrl(registryUrl?: string): Promise<string> {
+    if (registryUrl)
+        return normalizeRegistryUrl(registryUrl)
+
+    return await resolveRegistryUrl()
+}
+
 export async function getPackageMetadata(
     packageName: string,
-    registryUrl: string = DEFAULT_REGISTRY_URL,
+    registryUrl?: string,
     rootDir?: string,
 ): Promise<RegistryPackageMetadata> {
-    const normalizedRegistryUrl = normalizeRegistryUrl(registryUrl)
     const cache = await readVersionCache(rootDir)
-    const cachedEntry = cache?.registryUrl === normalizedRegistryUrl
-        ? cache.packages[packageName]
-        : undefined
+    const cachedEntry = cache?.packages[packageName]
 
-    if (cachedEntry && isVersionCacheEntryFresh(cachedEntry)) {
+    if (cachedEntry && isVersionCacheEntryFresh(cachedEntry) && (!registryUrl || cache?.registryUrl === normalizeRegistryUrl(registryUrl))) {
         return {
             name: cachedEntry.name,
             versions: cachedEntry.versions,
             distTags: cachedEntry.distTags,
+            enginesByVersion: cachedEntry.enginesByVersion ?? {},
         }
     }
+
+    const normalizedRegistryUrl = await resolveRequestedRegistryUrl(registryUrl)
 
     const response = await ofetch<NpmRegistryResponse>(`${normalizedRegistryUrl}${packageName.replace(/\//g, '%2f')}`, {
         headers: {
@@ -137,6 +157,12 @@ export async function getPackageMetadata(
         name: response.name ?? packageName,
         versions: Object.keys(response.versions ?? {}),
         distTags: response['dist-tags'] ?? {},
+        enginesByVersion: Object.fromEntries(
+            Object.entries(response.versions ?? {})
+                .flatMap(([version, manifest]) => manifest.engines?.node
+                    ? [[version, { node: manifest.engines.node }]]
+                    : []),
+        ),
     }
 
     if (rootDir) {
@@ -150,6 +176,7 @@ export async function getPackageMetadata(
                     fetchedAt: new Date().toISOString(),
                     versions: metadata.versions,
                     distTags: metadata.distTags,
+                    enginesByVersion: metadata.enginesByVersion,
                 },
             },
         }
@@ -169,30 +196,34 @@ export async function getNpmRegistryMetaData(
 
 export async function resolvePackageVersions(
     queries: readonly PackageVersionQuery[],
-    registryUrl: string = DEFAULT_REGISTRY_URL,
+    registryUrl?: string,
     rootDir?: string,
 ): Promise<PackageVersionResolution[]> {
     if (queries.length === 0)
         return []
 
     const uniquePackageNames = Array.from(new Set(queries.map(query => query.name)))
-    const normalizedRegistryUrl = normalizeRegistryUrl(registryUrl)
     const cache = await readVersionCache(rootDir)
-    const cachedPackages = cache?.registryUrl === normalizedRegistryUrl ? cache.packages : {}
     const packageMetadata = new Map<string, RegistryPackageMetadata>()
+    const requestedRegistryUrl = registryUrl ? normalizeRegistryUrl(registryUrl) : undefined
     const missingPackageNames = uniquePackageNames.filter((packageName) => {
-        const cachedEntry = cachedPackages?.[packageName]
-        if (cachedEntry && isVersionCacheEntryFresh(cachedEntry)) {
+        const cachedEntry = cache?.packages[packageName]
+        if (cachedEntry && isVersionCacheEntryFresh(cachedEntry) && (!requestedRegistryUrl || cache?.registryUrl === requestedRegistryUrl)) {
             packageMetadata.set(packageName, {
                 name: cachedEntry.name,
                 versions: cachedEntry.versions,
                 distTags: cachedEntry.distTags,
+                enginesByVersion: cachedEntry.enginesByVersion ?? {},
             })
             return false
         }
 
         return true
     })
+
+    const normalizedRegistryUrl = missingPackageNames.length > 0
+        ? await resolveRequestedRegistryUrl(registryUrl)
+        : requestedRegistryUrl ?? cache?.registryUrl ?? normalizeRegistryUrl(DEFAULT_REGISTRY_URL)
 
     const metadataEntries = await mapWithConcurrency(
         missingPackageNames,
@@ -215,6 +246,7 @@ export async function resolvePackageVersions(
                 fetchedAt: new Date().toISOString(),
                 versions: metadata.versions,
                 distTags: metadata.distTags,
+                enginesByVersion: metadata.enginesByVersion,
             }
         }
 
@@ -231,6 +263,7 @@ export async function resolvePackageVersions(
             throw new Error(`Missing package metadata for ${query.name}.`)
 
         return {
+            metadata,
             name: query.name,
             specifier: query.specifier,
             version: resolveVersionFromMetadata(query, metadata),

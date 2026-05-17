@@ -27,7 +27,7 @@ export async function resolvePnpmWorkspaceContext(cwd: string): Promise<PnpmWork
         }),
     ])
 
-    const packagePaths = rootPackagePath
+    const packagePaths = rootPackagePath && (workspaceConfig.packages?.length ?? 0) > 0
         ? await collectWorkspacePackagePaths(rootDir, rootPackagePath, workspaceConfig.packages ?? [])
         : []
 

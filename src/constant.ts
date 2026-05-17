@@ -20,10 +20,15 @@ export const LOCK_FILE_NAMES = [
     'bun.lockb',
 ] as const
 
-export const CLI_TABLE_HEADERS = [
+export const CLI_BASE_TABLE_HEADERS = [
     'dependencyName',
     'current_Version',
     'new_Version',
+] as const
+
+export const CLI_CATALOG_TABLE_HEADERS = [
+    'source',
+    'catalogName',
 ] as const
 
 export const PACKAGE_MANIFEST_NAMES = ['package.json', 'package.yaml', 'package.yml'] as const
