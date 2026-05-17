@@ -49,8 +49,8 @@ function renderAnnotatedStdout(candidates: Array<{
 }>): string {
     const showCatalogColumns = candidates.some(candidate => candidate.source === 'catalog' || candidate.source === 'catalogs')
     const headers = showCatalogColumns
-        ? ['dependencyName', 'current_Version', 'new_Version', 'source', 'catalogName', 'filePath']
-        : ['dependencyName', 'current_Version', 'new_Version', 'filePath']
+        ? ['dependencyName', 'currentVersion', 'newVersion', 'source', 'catalogName', 'filePath']
+        : ['dependencyName', 'currentVersion', 'newVersion', 'filePath']
     const rows = candidates.map((candidate) => {
         const baseColumns = [
             candidate.name,
@@ -181,7 +181,7 @@ export async function runFixtureScenario(scenario: FixtureScenario) {
         vi.mocked(confirm).mockResolvedValue(true)
         vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
         vi.spyOn(console, 'error').mockImplementation(() => {})
-        vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+        vi.spyOn(npmModule, 'getNpmRegistryMetadata').mockImplementation(fetchPackageMetadata)
         vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
         await runCliWithOptions({

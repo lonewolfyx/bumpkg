@@ -1,7 +1,5 @@
 import type { ParsedArgs } from 'citty'
 
-export type PackageJsonPath = string
-
 export type DeepWriteable<T> = {
     -readonly [P in keyof T]: T[P] extends object ? DeepWriteable<T[P]> : T[P]
 }
@@ -49,9 +47,9 @@ export interface DependencyEntry extends DependencyLocation {
 export interface ProjectConfig {
     cwd: string
     rootDir: string
-    rootPackagePath: PackageJsonPath
+    rootPackagePath: string
     monorepo: boolean
-    packages: PackageJsonPath[]
+    packages: string[]
     dependencies: DependencyEntry[]
     devDependencies: DependencyEntry[]
     optionalDependencies: DependencyEntry[]
@@ -63,17 +61,17 @@ export interface ProjectConfig {
 
 export interface PnpmWorkspaceContext {
     filePath: string
-    rootPackagePath?: PackageJsonPath
+    rootPackagePath?: string
     workspaceConfig: WorkspaceConfig
-    packagePaths: PackageJsonPath[]
+    packagePaths: string[]
 }
 
 export interface PackageContext {
     rootDir: string
-    rootPackagePath: PackageJsonPath
+    rootPackagePath: string
     rootManifest: PackageManifest
     monorepo: boolean
-    packages: PackageJsonPath[]
+    packages: string[]
     workspaceFilePath?: string
     workspaceConfig?: WorkspaceConfig
     yarnConfigPath?: string
@@ -97,12 +95,25 @@ export interface PackageVersionQuery {
 export interface PackageVersionResolution extends PackageVersionQuery {
     version: string | null
     metadata?: RegistryPackageMetadata
+    error?: string
 }
+
+export type ResolvePackageVersions = (
+    queries: readonly PackageVersionQuery[],
+    registryUrl?: string,
+    rootDir?: string,
+) => Promise<PackageVersionResolution[]>
+
+export type FetchPackageMetadata = (
+    packageName: string,
+    registryUrl?: string,
+    rootDir?: string,
+) => Promise<RegistryPackageMetadata>
 
 export interface CheckUpdateOptions {
     includeMajor?: boolean
-    resolvePackageVersions?: (queries: readonly PackageVersionQuery[], registryUrl?: string, rootDir?: string) => Promise<PackageVersionResolution[]>
-    fetchPackageMetadata?: (packageName: string, registryUrl?: string, rootDir?: string) => Promise<RegistryPackageMetadata>
+    resolvePackageVersions?: ResolvePackageVersions
+    fetchPackageMetadata?: FetchPackageMetadata
 }
 
 export interface CheckUpdateError {

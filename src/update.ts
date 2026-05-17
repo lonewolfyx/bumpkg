@@ -6,7 +6,8 @@ import type {
     UpdatedFileResult,
     WorkspaceConfig,
 } from './types'
-import { readProjectManifest, writeProjectManifest } from './package/manifest'
+import { readFile, writeFile } from 'node:fs/promises'
+import { isYamlManifestPath, readProjectManifest, writeProjectManifest } from './package/manifest'
 import { isWildcardSpecifier } from './utils'
 
 function canApplyCandidate(candidate: UpdateCandidate, includeMajor: boolean): boolean {
@@ -81,23 +82,114 @@ function applyWorkspaceCatalogUpdates(
     return updatedDependencies
 }
 
-function resolveWorkspaceConfigTarget(manifest: PackageManifest | WorkspaceConfig): WorkspaceConfig {
-    if ('workspaces' in manifest && manifest.workspaces && !Array.isArray(manifest.workspaces))
-        return manifest.workspaces
+function replaceYamlValue(
+    lines: string[],
+    sectionPath: string[],
+    dependencyName: string,
+    nextSpecifier: string,
+): boolean {
+    const pathStack: string[] = []
 
-    return manifest as WorkspaceConfig
+    for (const [index, line] of lines.entries()) {
+        const trimmedLine = line.trimStart()
+        if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('-'))
+            continue
+
+        const indent = line.length - trimmedLine.length
+        const colonIndex = line.indexOf(':')
+        if (colonIndex <= indent)
+            continue
+
+        const rawKey = line.slice(indent, colonIndex).trim()
+        if (!rawKey)
+            continue
+
+        const level = Math.floor(indent / 2)
+        const key = rawKey.trim().replace(/^['"]|['"]$/g, '')
+        pathStack.length = level
+        pathStack[level] = key
+
+        if (
+            key !== dependencyName
+            || pathStack.length !== sectionPath.length + 1
+            || !sectionPath.every((section, sectionIndex) => pathStack[sectionIndex] === section)
+        ) {
+            continue
+        }
+
+        const suffix = line.slice(colonIndex + 1)
+        const commentIndex = suffix.indexOf('#')
+        const contentBeforeComment = commentIndex >= 0 ? suffix.slice(0, commentIndex) : suffix
+        const leadingSpaceLength = contentBeforeComment.length - contentBeforeComment.trimStart().length
+        const leadingSpace = contentBeforeComment.slice(0, leadingSpaceLength) || ' '
+        const trailingWhitespaceLength = contentBeforeComment.length - contentBeforeComment.trimEnd().length
+        const trailingComment = commentIndex >= 0
+            ? `${contentBeforeComment.slice(contentBeforeComment.length - trailingWhitespaceLength)}${suffix.slice(commentIndex)}`
+            : ''
+        lines[index] = `${line.slice(0, colonIndex + 1)}${leadingSpace}${nextSpecifier}${trailingComment}`
+        return true
+    }
+
+    return false
+}
+
+async function applyYamlManifestUpdates(
+    filePath: string,
+    candidates: UpdateCandidate[],
+): Promise<string[]> {
+    const lines = (await readFile(filePath, 'utf8')).split('\n')
+    const updatedDependencies: string[] = []
+
+    for (const candidate of candidates) {
+        const updatedDependencyLabel = candidate.source.source === 'catalogs' && candidate.source.catalogName
+            ? `${candidate.source.catalogName}:${candidate.name}`
+            : candidate.name
+        const sectionPaths
+            = candidate.source.source === 'dependencies'
+                || candidate.source.source === 'devDependencies'
+                || candidate.source.source === 'optionalDependencies'
+                ? [[candidate.source.source]]
+                : candidate.source.source === 'catalog'
+                    ? [['catalog'], ['workspaces', 'catalog']]
+                    : candidate.source.source === 'catalogs' && candidate.source.catalogName
+                        ? [
+                                ['catalogs', candidate.source.catalogName],
+                                ['workspaces', 'catalogs', candidate.source.catalogName],
+                            ]
+                        : []
+        const replaced = sectionPaths.some(sectionPath =>
+            replaceYamlValue(lines, sectionPath, candidate.name, candidate.nextSpecifier),
+        )
+        if (!replaced)
+            throw new Error(`Unable to update YAML entry for ${updatedDependencyLabel} in ${filePath}.`)
+
+        updatedDependencies.push(updatedDependencyLabel)
+    }
+
+    await writeFile(filePath, lines.join('\n'), 'utf8')
+    return updatedDependencies
 }
 
 export async function applyUpdatesToFile(
     filePath: string,
     candidates: UpdateCandidate[],
 ): Promise<UpdatedFileResult> {
+    if (isYamlManifestPath(filePath)) {
+        return {
+            filePath,
+            updatedDependencies: await applyYamlManifestUpdates(filePath, candidates),
+        }
+    }
+
     const catalogCandidates = candidates.filter(candidate => candidate.source.source === 'catalog' || candidate.source.source === 'catalogs')
     const manifest = await readProjectManifest(filePath)
     const updatedDependencies = applyManifestDependencyUpdates(manifest, candidates)
 
     if (catalogCandidates.length > 0) {
-        const workspaceConfig = resolveWorkspaceConfigTarget(manifest)
+        const workspaceConfig
+            = 'workspaces' in manifest && manifest.workspaces && !Array.isArray(manifest.workspaces)
+                ? manifest.workspaces
+                : manifest as WorkspaceConfig
         updatedDependencies.push(...applyWorkspaceCatalogUpdates(workspaceConfig, catalogCandidates))
     }
 

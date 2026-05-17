@@ -55,7 +55,7 @@ describe('cli integration', () => {
             vi.mocked(confirm).mockResolvedValue(true)
             vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
             vi.spyOn(console, 'error').mockImplementation(() => {})
-            vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+            vi.spyOn(npmModule, 'getNpmRegistryMetadata').mockImplementation(fetchPackageMetadata)
             vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
             await runCliWithOptions({ c: '', cwd: directory, major: false, _: [''] })
@@ -97,7 +97,7 @@ describe('cli integration', () => {
             vi.mocked(confirm).mockResolvedValue(true)
             vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
             vi.spyOn(console, 'error').mockImplementation(() => {})
-            vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+            vi.spyOn(npmModule, 'getNpmRegistryMetadata').mockImplementation(fetchPackageMetadata)
             vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
             await runCliWithOptions({ c: '', cwd: directory, major: false, _: [''] })
@@ -138,7 +138,7 @@ describe('cli integration', () => {
             vi.mocked(confirm).mockResolvedValue(true)
             vi.spyOn(console, 'log').mockImplementation(() => {})
             vi.spyOn(console, 'error').mockImplementation(() => {})
-            vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+            vi.spyOn(npmModule, 'getNpmRegistryMetadata').mockImplementation(fetchPackageMetadata)
             vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
             await runCliWithOptions({ c: '', cwd: directory, major: true, _: [''] })
@@ -178,7 +178,7 @@ describe('cli integration', () => {
             vi.mocked(confirm).mockResolvedValue(false)
             vi.spyOn(console, 'log').mockImplementation(() => {})
             vi.spyOn(console, 'error').mockImplementation(() => {})
-            vi.spyOn(npmModule, 'getNpmRegistryMetaData').mockImplementation(fetchPackageMetadata)
+            vi.spyOn(npmModule, 'getNpmRegistryMetadata').mockImplementation(fetchPackageMetadata)
             vi.spyOn(npmModule, 'resolvePackageVersions').mockImplementation(resolvePackageVersions)
 
             await runCliWithOptions({ c: '', cwd: directory, major: false, _: [''] })

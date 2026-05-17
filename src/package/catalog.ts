@@ -1,18 +1,16 @@
-import type { DependencyEntry, ManifestFormat, WorkspaceConfig } from '../types'
-import { extname } from 'node:path'
-import { YAML_FILE_EXTENSIONS } from '../constant'
+import type { DependencyEntry, WorkspaceConfig } from '../types'
+import { resolveManifestFormat } from './manifest'
 
 export function extractCatalogEntries(
     filePath: string,
     workspaceConfig: WorkspaceConfig,
 ): DependencyEntry[] {
-    const manifestFormat: ManifestFormat = YAML_FILE_EXTENSIONS.includes(extname(filePath) as typeof YAML_FILE_EXTENSIONS[number]) ? 'yaml' : 'json'
     const catalogEntries = Object.entries(workspaceConfig.catalog ?? {}).map(([name, version]) => ({
         name,
         version,
         filePath,
         source: 'catalog' as const,
-        manifestFormat,
+        manifestFormat: resolveManifestFormat(filePath),
     }))
 
     const catalogsEntries = Object.entries(workspaceConfig.catalogs ?? {}).flatMap(([catalogName, catalog]) =>
@@ -21,7 +19,7 @@ export function extractCatalogEntries(
             version,
             filePath,
             source: 'catalogs' as const,
-            manifestFormat,
+            manifestFormat: resolveManifestFormat(filePath),
             catalogName,
         })),
     )

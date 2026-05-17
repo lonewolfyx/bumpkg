@@ -5,7 +5,7 @@ import { PACKAGE_MANIFEST_NAMES } from '../constant'
 import { readProjectManifest } from './manifest'
 import { resolvePnpmWorkspaceContext } from './pnpm'
 import { collectWorkspacePackagePaths, getManifestWorkspacePatterns } from './workspace'
-import { readYarnConfig, YARN_CONFIG_FILE } from './yarn'
+import { readYarnConfig } from './yarn'
 
 export async function resolvePackageContext(cwd: string): Promise<PackageContext> {
     const [manifestPaths, pnpmWorkspaceContext, yarnConfigPath] = await Promise.all([
@@ -14,7 +14,7 @@ export async function resolvePackageContext(cwd: string): Promise<PackageContext
             type: 'file',
         }),
         resolvePnpmWorkspaceContext(cwd),
-        findUp(YARN_CONFIG_FILE, {
+        findUp('.yarnrc.yml', {
             cwd,
             type: 'file',
         }),

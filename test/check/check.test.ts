@@ -298,4 +298,55 @@ describe('checkUpdateDependencies', () => {
             }),
         ])
     })
+
+    test('collects resolver errors without dropping successful candidates', async () => {
+        const result = await checkUpdateDependencies(
+            createProjectConfig([
+                createEntry('react', '^18.2.0'),
+                createEntry('broken', '^1.0.0'),
+            ]),
+            {
+                resolvePackageVersions: vi.fn().mockResolvedValue([
+                    {
+                        name: 'react',
+                        specifier: '>=18.2.0 <19.0.0',
+                        version: '18.3.1',
+                    },
+                    {
+                        error: 'registry timeout',
+                        name: 'broken',
+                        specifier: '>=1.0.0 <2.0.0',
+                        version: null,
+                    },
+                ]),
+            },
+        )
+
+        expect(result.candidates).toEqual([
+            expect.objectContaining({
+                name: 'react',
+                nextSpecifier: '^18.3.1',
+            }),
+        ])
+        expect(result.errors).toEqual([
+            expect.objectContaining({
+                name: 'broken',
+                reason: 'registry timeout',
+            }),
+        ])
+    })
+
+    test('does not silently fall back when a custom resolver throws', async () => {
+        await expect(checkUpdateDependencies(
+            createProjectConfig([createEntry('react', '^18.2.0')]),
+            {
+                fetchPackageMetadata: vi.fn().mockResolvedValue({
+                    name: 'react',
+                    versions: ['18.2.0', '18.3.1'],
+                    distTags: { latest: '18.3.1' },
+                }),
+                resolvePackageVersions: vi.fn().mockRejectedValue(new Error('resolver failed')),
+            },
+        )).rejects.toThrow('resolver failed')
+    })
 })

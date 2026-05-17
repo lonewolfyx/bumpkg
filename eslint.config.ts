@@ -12,7 +12,6 @@ const config = antfu({
         'no-console': 'off',
         'node/prefer-global/process': 'off',
         'ts/explicit-function-return-type': 'off',
-        'unused-imports/no-unused-vars': 'off',
         'antfu/top-level-function': 'off',
         'regexp/no-unused-capturing-group': 'off',
         'test/consistent-test-it': 'off',

@@ -6,10 +6,8 @@ import { parse } from 'yaml'
 import { PACKAGE_MANIFEST_NAMES } from '../constant'
 import { collectWorkspacePackagePaths } from './workspace'
 
-export const PNPM_WORKSPACE_FILE = 'pnpm-workspace.yaml'
-
 export async function resolvePnpmWorkspaceContext(cwd: string): Promise<PnpmWorkspaceContext | undefined> {
-    const filePath = await findUp(PNPM_WORKSPACE_FILE, {
+    const filePath = await findUp('pnpm-workspace.yaml', {
         cwd,
         type: 'file',
     })
