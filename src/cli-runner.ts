@@ -1,5 +1,5 @@
 import type { CommandArgs, UpdateCandidate } from './types'
-import { confirm, isCancel } from '@clack/prompts'
+import { confirm, isCancel, note } from '@clack/prompts'
 import { checkUpdateDependencies } from './check'
 import { resolveConfig } from './config'
 import { CLI_BASE_TABLE_HEADERS, CLI_CATALOG_TABLE_HEADERS } from './constant'
@@ -93,7 +93,10 @@ export async function runCliWithOptions(
         return
     }
 
-    console.log(renderUpdateTable(checkResult.candidates))
+    note(
+        renderUpdateTable(checkResult.candidates),
+        'dependencies',
+    )
 
     const confirmedResult = await confirm({
         message: 'Apply these dependency updates?',
