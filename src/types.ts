@@ -103,24 +103,6 @@ export interface PackageVersionResolution extends PackageVersionQuery {
     error?: string
 }
 
-export type ResolvePackageVersions = (
-    queries: readonly PackageVersionQuery[],
-    registryUrl?: string,
-    rootDir?: string,
-) => Promise<PackageVersionResolution[]>
-
-export type FetchPackageMetadata = (
-    packageName: string,
-    registryUrl?: string,
-    rootDir?: string,
-) => Promise<RegistryPackageMetadata>
-
-export interface CheckUpdateOptions {
-    includeMajor?: boolean
-    resolvePackageVersions?: ResolvePackageVersions
-    fetchPackageMetadata?: FetchPackageMetadata
-}
-
 export interface CheckUpdateError {
     name: string
     currentVersion: string

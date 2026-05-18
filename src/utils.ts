@@ -1,4 +1,4 @@
-import type { DependencyLocation, DependencyType, UpdateCandidate, WorkspaceConfig } from './types'
+import type { DependencyLocation, DependencyType, WorkspaceConfig } from './types'
 import { readFile } from 'node:fs/promises'
 import { parse } from 'yaml'
 import { DEPENDENCY_FIELDS } from './constant'
@@ -31,16 +31,6 @@ export function getDependencyTypes(location: DependencyLocation): DependencyType
 
     const dependencyTypes = location.dependencyTypes ?? []
     return DEPENDENCY_FIELDS.filter(field => dependencyTypes.includes(field))
-}
-
-export function sortUpdateCandidates(candidates: UpdateCandidate[]): void {
-    candidates.sort((left, right) => {
-        const nameCompare = left.name.localeCompare(right.name)
-        if (nameCompare !== 0)
-            return nameCompare
-
-        return left.source.filePath.localeCompare(right.source.filePath)
-    })
 }
 
 export async function readYamlConfig(filePath: string): Promise<WorkspaceConfig> {

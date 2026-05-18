@@ -2,7 +2,6 @@ import type {
     PackageVersionQuery,
     PackageVersionResolution,
     RegistryPackageMetadata,
-    ResolvePackageVersions,
     VersionCacheEntry,
     VersionCacheFile,
 } from './types'
@@ -199,8 +198,8 @@ export async function getNpmRegistryMetadata(
     return await getPackageMetadata(packageName, registryUrl, rootDir)
 }
 
-export const resolvePackageVersions: ResolvePackageVersions = async (
-    queries,
+export const resolvePackageVersions = async (
+    queries: readonly PackageVersionQuery[],
     registryUrl?: string,
     rootDir?: string,
 ): Promise<PackageVersionResolution[]> => {
