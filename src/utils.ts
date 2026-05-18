@@ -1,4 +1,6 @@
-import type { DependencyLocation, UpdateCandidate } from './types'
+import type { DependencyLocation, UpdateCandidate, WorkspaceConfig } from './types'
+import { readFile } from 'node:fs/promises'
+import { parse } from 'yaml'
 
 export function normalizeRegistryUrl(registryUrl: string): string {
     return registryUrl.endsWith('/') ? registryUrl : `${registryUrl}/`
@@ -29,4 +31,8 @@ export function sortUpdateCandidates(candidates: UpdateCandidate[]): void {
 
         return left.source.filePath.localeCompare(right.source.filePath)
     })
+}
+
+export async function readYamlConfig(filePath: string): Promise<WorkspaceConfig> {
+    return parse(await readFile(filePath, 'utf8')) as WorkspaceConfig
 }
