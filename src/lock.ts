@@ -12,7 +12,7 @@ export async function cleanupLockFiles(cwd: string): Promise<CleanupLockResult> 
     const missing: string[] = []
     const failed: CleanupLockResult['failed'] = []
 
-    for (const filePath of getLockFilePaths(cwd)) {
+    for (const filePath of LOCK_FILE_NAMES.map(fileName => join(cwd, fileName))) {
         try {
             await unlink(filePath)
             removed.push(filePath)
