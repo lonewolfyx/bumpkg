@@ -68,8 +68,8 @@ export function renderUpdateTable(candidates: UpdateCandidate[]): string {
 export async function runCliWithOptions(
     options: CommandArgs,
 ): Promise<void> {
-    const projectConfig = await resolveConfig(options.cwd)
-    const checkResult = await checkUpdateDependencies(projectConfig, {
+    const config = await resolveConfig(options)
+    const checkResult = await checkUpdateDependencies(config, {
         includeMajor: options.major,
     })
 
@@ -106,7 +106,7 @@ export async function runCliWithOptions(
     const updateResult = await applyDependencyUpdates(checkResult.candidates, {
         includeMajor: options.major,
     })
-    const cleanupResult = await cleanupLockFiles(projectConfig.rootDir)
+    const cleanupResult = await cleanupLockFiles(config.rootDir)
 
     console.log(`Updated ${updateResult.updatedCount} dependencies across ${updateResult.updatedFiles.length} files.`)
 

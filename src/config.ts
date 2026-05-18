@@ -1,4 +1,4 @@
-import type { DependencyType, ProjectConfig } from './types'
+import type { CommandArgs, DependencyType, ProjectConfig } from './types'
 import { DEPENDENCY_FIELDS } from './constant'
 import { getBunWorkspaceConfig } from './package/bun'
 import { extractCatalogEntries } from './package/catalog'
@@ -6,7 +6,8 @@ import { collectDependencyEntries } from './package/dependency'
 import { readProjectManifest } from './package/manifest'
 import { resolvePackageContext } from './package/project'
 
-export async function resolveConfig(cwd: string = process.cwd()): Promise<ProjectConfig> {
+export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig> {
+    const { cwd } = options
     const packageContext = await resolvePackageContext(cwd)
 
     const manifests = await Promise.all(
