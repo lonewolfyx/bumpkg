@@ -31,20 +31,40 @@ function resolveCatalogDependencies(
 
 export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig> {
     const { cwd } = options
-    const packageContext = await resolvePackageContext(cwd)
-    const packagePaths = packageContext.monorepo
-        ? packageContext.packages
-        : [packageContext.rootPackagePath]
+
+    const {
+        monorepo,
+        packages,
+        rootPackagePath,
+        rootManifest,
+        packageManagement,
+        workspaceFilePath,
+        workspaceConfig,
+        yarnConfigPath,
+        yarnConfig,
+        rootDir,
+        packageManager,
+    } = await resolvePackageContext(cwd)
+
+    const packagePaths = monorepo
+        ? packages
+        : [rootPackagePath]
+
     const manifests = await Promise.all(
         packagePaths.map(async packagePath => ({
             packagePath,
-            manifest: packagePath === packageContext.rootPackagePath
-                ? packageContext.rootManifest
+            manifest: packagePath === rootPackagePath
+                ? rootManifest
                 : await readProjectManifest(packagePath),
         })),
     )
 
-    const dependenciesByType = DEPENDENCY_FIELDS.reduce<Record<DependencyType, ProjectConfig['dependencies']>>((accumulator, field) => {
+    const {
+        dependencies,
+        devDependencies,
+        peerDependencies,
+        optionalDependencies,
+    } = DEPENDENCY_FIELDS.reduce<Record<DependencyType, ProjectConfig['dependencies']>>((accumulator, field) => {
         accumulator[field] = manifests.flatMap(({ packagePath, manifest }) =>
             collectDependencyEntries(packagePath, manifest, field),
         )
@@ -55,37 +75,38 @@ export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig
         peerDependencies: [],
         optionalDependencies: [],
     })
-    const catalogDependencies = resolveCatalogDependencies(packageContext.packageManagement, {
-        rootPackagePath: packageContext.rootPackagePath,
-        workspaceFilePath: packageContext.workspaceFilePath,
-        workspaceConfig: packageContext.workspaceConfig,
-        yarnConfigPath: packageContext.yarnConfigPath,
-        yarnConfig: packageContext.yarnConfig,
-    }, packageContext.rootManifest)
+
+    const catalogDependencies = resolveCatalogDependencies(packageManagement, {
+        rootPackagePath,
+        workspaceFilePath,
+        workspaceConfig,
+        yarnConfigPath,
+        yarnConfig,
+    }, rootManifest)
 
     return {
         cwd,
-        rootDir: packageContext.rootDir,
-        rootPackagePath: packageContext.rootPackagePath,
-        packageManagement: packageContext.packageManagement,
-        packageManager: packageContext.packageManager,
-        monorepo: packageContext.monorepo,
+        rootDir,
+        rootPackagePath,
+        packageManagement,
+        packageManager,
+        monorepo,
         packages: packagePaths,
-        dependencies: dependenciesByType.dependencies,
-        devDependencies: dependenciesByType.devDependencies,
-        peerDependencies: dependenciesByType.peerDependencies,
-        optionalDependencies: dependenciesByType.optionalDependencies,
+        dependencies,
+        devDependencies,
+        peerDependencies,
+        optionalDependencies,
         catalogDependencies,
         allDependencies: [
-            ...dependenciesByType.dependencies,
-            ...dependenciesByType.devDependencies,
-            ...dependenciesByType.peerDependencies,
-            ...dependenciesByType.optionalDependencies,
+            ...dependencies,
+            ...devDependencies,
+            ...peerDependencies,
+            ...optionalDependencies,
             ...catalogDependencies,
         ],
-        workspaceFilePath: packageContext.workspaceFilePath,
-        workspaceConfig: packageContext.workspaceConfig,
-        yarnConfigPath: packageContext.yarnConfigPath,
-        yarnConfig: packageContext.yarnConfig,
+        workspaceFilePath,
+        workspaceConfig,
+        yarnConfigPath,
+        yarnConfig,
     }
 }
