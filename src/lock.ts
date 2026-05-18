@@ -3,10 +3,6 @@ import { unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { LOCK_FILE_NAMES } from './constant'
 
-export function getLockFilePaths(cwd: string): string[] {
-    return LOCK_FILE_NAMES.map(fileName => join(cwd, fileName))
-}
-
 export async function cleanupLockFiles(cwd: string): Promise<CleanupLockResult> {
     const removed: string[] = []
     const missing: string[] = []
