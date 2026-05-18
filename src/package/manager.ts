@@ -13,10 +13,6 @@ const LOCK_FILE_BY_MANAGER: ReadonlyArray<{
     { fileName: 'yarn.lock', packageManagement: 'yarn' },
 ]
 
-function countPathSegments(filePath: string): number {
-    return dirname(filePath).split('/').filter(Boolean).length
-}
-
 export async function getPackageManagement(cwd: string): Promise<PackageManagement> {
     const matches = await Promise.all(
         LOCK_FILE_BY_MANAGER.map(async ({ fileName, packageManagement }) => ({
@@ -27,6 +23,10 @@ export async function getPackageManagement(cwd: string): Promise<PackageManageme
             packageManagement,
         })),
     )
+
+    const countPathSegments = (filePath: string): number => {
+        return dirname(filePath).split('/').filter(Boolean).length
+    }
 
     const resolved = matches
         .filter(match => Boolean(match.filePath))
