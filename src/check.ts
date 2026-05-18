@@ -1,19 +1,16 @@
 import type {
     CheckUpdateError,
-    CheckUpdateOptions,
     CheckUpdateResult,
+    CommandArgs,
     DependencyEntry,
-    FetchPackageMetadata,
     PackageVersionQuery,
     PackageVersionResolution,
     ProjectConfig,
     RegistryPackageMetadata,
-    ResolvePackageVersions,
     UpdateCandidate,
-    UpdateLevel,
 } from './types'
-import { resolvePackageVersions } from './npm'
-import { isWildcardSpecifier, sortUpdateCandidates, toDependencyLocation } from './utils'
+import { resolvePackageVersions } from '@/npm.ts'
+import { isWildcardSpecifier, toDependencyLocation } from './utils'
 import {
     buildNextSpecifier,
     buildSameMajorRangeSpecifier,
@@ -21,7 +18,6 @@ import {
     getCurrentVersionFromSpecifier,
     resolveAvailableMajorVersion,
     resolveVersionNodeRequirement,
-    selectTargetVersion,
     shouldProcessSpecifier,
 } from './version'
 
@@ -53,38 +49,6 @@ function enrichUpdateCandidate(
     return candidate
 }
 
-function buildUpdateCandidate(
-    entry: DependencyEntry,
-    newVersion: string,
-    updateLevel: UpdateLevel,
-    metadata?: RegistryPackageMetadata,
-): UpdateCandidate {
-    return enrichUpdateCandidate({
-        name: entry.name,
-        currentVersion: entry.version,
-        currentSpecifier: entry.version,
-        newVersion,
-        nextSpecifier: buildNextSpecifier(entry.version, newVersion),
-        updateLevel,
-        source: toDependencyLocation(entry),
-    }, metadata)
-}
-
-export function createUpdateCandidate(
-    entry: ProjectConfig['allDependencies'][number],
-    metadata: RegistryPackageMetadata,
-    includeMajor: boolean,
-): UpdateCandidate | null {
-    if (!shouldProcessSpecifier(entry.version))
-        return null
-
-    const selection = selectTargetVersion(entry.version, metadata, includeMajor)
-    if (!selection)
-        return null
-
-    return buildUpdateCandidate(entry, selection.newVersion, selection.updateLevel, metadata)
-}
-
 function toQueryKey(name: string, specifier: string): string {
     return `${name}\u0000${specifier}`
 }
@@ -105,12 +69,15 @@ function createUpdateCandidateFromResolution(
         return null
 
     if (isWildcardSpecifier(entry.version)) {
-        return buildUpdateCandidate(
-            entry,
+        return enrichUpdateCandidate({
+            name: entry.name,
+            currentVersion: entry.version,
+            currentSpecifier: entry.version,
             newVersion,
-            detectUpdateLevel('0.0.0', newVersion) ?? 'patch',
-            resolution.metadata,
-        )
+            nextSpecifier: buildNextSpecifier(entry.version, newVersion),
+            updateLevel: detectUpdateLevel('0.0.0', newVersion) ?? 'patch',
+            source: toDependencyLocation(entry),
+        }, resolution.metadata)
     }
 
     const currentVersion = getCurrentVersionFromSpecifier(entry.version)
@@ -121,68 +88,49 @@ function createUpdateCandidateFromResolution(
     if (!updateLevel)
         return null
 
-    return buildUpdateCandidate(entry, newVersion, updateLevel, resolution.metadata)
-}
-
-function getProcessableEntries(config: ProjectConfig): DependencyEntry[] {
-    return config.allDependencies.filter(entry => shouldProcessSpecifier(entry.version))
-}
-
-function getErrorReason(error: unknown, fallback: string): string {
-    return error instanceof Error ? error.message : fallback
-}
-
-function createCheckError(entry: DependencyEntry, reason: string): CheckUpdateError {
-    return {
+    return enrichUpdateCandidate({
         name: entry.name,
         currentVersion: entry.version,
-        reason,
+        currentSpecifier: entry.version,
+        newVersion,
+        nextSpecifier: buildNextSpecifier(entry.version, newVersion),
+        updateLevel,
         source: toDependencyLocation(entry),
-    }
+    }, resolution.metadata)
 }
 
-function createCheckResult(
-    candidates: UpdateCandidate[],
-    errors: CheckUpdateError[],
-): CheckUpdateResult {
-    sortUpdateCandidates(candidates)
-
-    return {
-        candidates,
-        errors,
-    }
-}
-
-async function checkUpdateDependenciesWithResolvedVersions(
-    config: ProjectConfig,
-    includeMajor: boolean,
-    resolveBatch: ResolvePackageVersions,
-): Promise<CheckUpdateResult> {
-    const processableEntries = getProcessableEntries(config)
+export async function checkUpdateDependencies(config: ProjectConfig, options: CommandArgs): Promise<CheckUpdateResult> {
+    const { major } = options
+    const processableEntries = config.allDependencies.filter(entry => shouldProcessSpecifier(entry.version))
     const uniqueQueries = new Map<string, PackageVersionQuery>()
     const candidates: UpdateCandidate[] = []
     const errors: CheckUpdateError[] = []
 
     for (const entry of processableEntries) {
-        const specifier = getResolutionSpecifier(entry, includeMajor)
+        const specifier = getResolutionSpecifier(entry, major)
         uniqueQueries.set(toQueryKey(entry.name, specifier), {
             name: entry.name,
             specifier,
         })
     }
 
-    const resolutions = await resolveBatch(Array.from(uniqueQueries.values()), undefined, config.rootDir)
+    const resolutions = await resolvePackageVersions(Array.from(uniqueQueries.values()), undefined, config.rootDir)
     const resolutionMap = new Map(
         resolutions.map(resolution => [toQueryKey(resolution.name, resolution.specifier), resolution]),
     )
 
     for (const entry of processableEntries) {
-        const resolution = resolutionMap.get(toQueryKey(entry.name, getResolutionSpecifier(entry, includeMajor)))
+        const resolution = resolutionMap.get(toQueryKey(entry.name, getResolutionSpecifier(entry, major)))
         if (!resolution)
             throw new Error(`Missing version resolution for ${entry.name}@${entry.version}.`)
 
         if (resolution.error) {
-            errors.push(createCheckError(entry, resolution.error))
+            errors.push({
+                name: entry.name,
+                currentVersion: entry.version,
+                reason: resolution.error,
+                source: toDependencyLocation(entry),
+            })
             continue
         }
 
@@ -191,67 +139,16 @@ async function checkUpdateDependenciesWithResolvedVersions(
             candidates.push(candidate)
     }
 
-    return createCheckResult(candidates, errors)
-}
+    candidates.sort((left, right) => {
+        const nameCompare = left.name.localeCompare(right.name)
+        if (nameCompare !== 0)
+            return nameCompare
 
-async function checkUpdateDependenciesWithMetadata(
-    config: ProjectConfig,
-    includeMajor: boolean,
-    fetchPackageMetadata: FetchPackageMetadata,
-): Promise<CheckUpdateResult> {
-    const processableEntries = getProcessableEntries(config)
-    const uniquePackageNames = Array.from(new Set(processableEntries.map(entry => entry.name)))
-    const candidates: UpdateCandidate[] = []
-    const errors: CheckUpdateError[] = []
-    const metadataResults = await Promise.all(
-        uniquePackageNames.map(async (packageName) => {
-            try {
-                return {
-                    packageName,
-                    metadata: await fetchPackageMetadata(packageName, undefined, config.rootDir),
-                }
-            }
-            catch (error) {
-                return {
-                    packageName,
-                    error: getErrorReason(error, 'Failed to fetch package metadata'),
-                }
-            }
-        }),
-    )
-    const metadataResultMap = new Map(
-        metadataResults.map(result => [result.packageName, result]),
-    )
+        return left.source.filePath.localeCompare(right.source.filePath)
+    })
 
-    for (const entry of processableEntries) {
-        const metadataResult = metadataResultMap.get(entry.name)
-        if (!metadataResult)
-            throw new Error(`Missing package metadata lookup for ${entry.name}.`)
-
-        if (!metadataResult.metadata) {
-            errors.push(createCheckError(entry, metadataResult.error ?? 'Failed to fetch package metadata'))
-            continue
-        }
-
-        const candidate = createUpdateCandidate(entry, metadataResult.metadata, includeMajor)
-        if (candidate)
-            candidates.push(candidate)
+    return {
+        candidates,
+        errors,
     }
-
-    return createCheckResult(candidates, errors)
-}
-
-export async function checkUpdateDependencies(
-    config: ProjectConfig,
-    options: CheckUpdateOptions = {},
-): Promise<CheckUpdateResult> {
-    const includeMajor = options.includeMajor ?? false
-
-    if (options.resolvePackageVersions)
-        return await checkUpdateDependenciesWithResolvedVersions(config, includeMajor, options.resolvePackageVersions)
-
-    if (options.fetchPackageMetadata)
-        return await checkUpdateDependenciesWithMetadata(config, includeMajor, options.fetchPackageMetadata)
-
-    return await checkUpdateDependenciesWithResolvedVersions(config, includeMajor, resolvePackageVersions)
 }

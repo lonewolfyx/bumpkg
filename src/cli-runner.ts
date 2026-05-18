@@ -73,9 +73,7 @@ export async function runCliWithOptions(
     options: CommandArgs,
 ): Promise<void> {
     const config = await resolveConfig(options)
-    const checkResult = await checkUpdateDependencies(config, {
-        includeMajor: options.major,
-    })
+    const checkResult = await checkUpdateDependencies(config, options)
 
     if (checkResult.errors.length > 0) {
         console.error(`Failed to check ${checkResult.errors.length} dependencies.`)
