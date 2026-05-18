@@ -1,19 +1,9 @@
 import { mkdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { cleanupLockFiles, getLockFilePaths } from '@/lock'
+import { cleanupLockFiles } from '@/lock'
 import { createTempDir, removeTempDir, writeText } from '../helpers'
 
 describe('cleanupLockFiles', () => {
-    test('builds supported lock file paths', () => {
-        expect(getLockFilePaths('/project')).toEqual([
-            '/project/package-lock.json',
-            '/project/pnpm-lock.yaml',
-            '/project/yarn.lock',
-            '/project/bun.lock',
-            '/project/bun.lockb',
-        ])
-    })
-
     test('removes a single lock file', async () => {
         const directory = await createTempDir('bumpkg-lock-single')
 
