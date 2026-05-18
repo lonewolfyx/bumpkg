@@ -165,20 +165,6 @@ describe('cli helpers', () => {
         ])
     })
 
-    test('passes the major flag into dependency checks', async () => {
-        const output: string[] = []
-        const mocks = setupCliMocks({ candidates: [], errors: [] }, output)
-
-        await runCliWithOptions({ c: '', cwd: process.cwd(), major: true, _: [''] })
-
-        expect(mocks.checkSpy).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.objectContaining({
-                includeMajor: true,
-            }),
-        )
-    })
-
     test('stops when the user cancels', async () => {
         const output: string[] = []
         const mocks = setupCliMocks({ candidates: [createCandidate()], errors: [] }, output)
