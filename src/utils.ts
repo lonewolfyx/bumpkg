@@ -1,6 +1,7 @@
-import type { DependencyLocation, UpdateCandidate, WorkspaceConfig } from './types'
+import type { DependencyLocation, DependencyType, UpdateCandidate, WorkspaceConfig } from './types'
 import { readFile } from 'node:fs/promises'
 import { parse } from 'yaml'
+import { DEPENDENCY_FIELDS } from './constant'
 
 export function normalizeRegistryUrl(registryUrl: string): string {
     return registryUrl.endsWith('/') ? registryUrl : `${registryUrl}/`
@@ -20,7 +21,16 @@ export function toDependencyLocation(location: DependencyLocation): DependencyLo
         source: location.source,
         manifestFormat: location.manifestFormat,
         catalogName: location.catalogName,
+        dependencyTypes: location.dependencyTypes,
     }
+}
+
+export function getDependencyTypes(location: DependencyLocation): DependencyType[] {
+    if (DEPENDENCY_FIELDS.includes(location.source as DependencyType))
+        return [location.source as DependencyType]
+
+    const dependencyTypes = location.dependencyTypes ?? []
+    return DEPENDENCY_FIELDS.filter(field => dependencyTypes.includes(field))
 }
 
 export function sortUpdateCandidates(candidates: UpdateCandidate[]): void {

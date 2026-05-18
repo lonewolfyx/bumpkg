@@ -2,13 +2,13 @@
 
 exports[`pnpm fixture > matches the fixture snapshot 1`] = `
 {
-  "annotatedStdout": "dependencyName | currentVersion | newVersion | filePath    
----------------|----------------|------------|-------------
-express        | ^4.1.0         | ^5.1.0     | package.json
-typescript     | ^0.22.6        | ^5.9.3     | package.json
-vite           | ^2.1.0         | ^7.1.9     | package.json
-vue            | ^3.4.0         | ^3.5.13    | package.json
-vue-router     | ^4.0.2         | ^4.5.1     | package.json",
+  "annotatedStdout": "dependencyName | currentVersion | newVersion | dependencyType | filePath    
+---------------|----------------|------------|----------------|-------------
+express        | ^4.1.0         | ^5.1.0     | dependencies   | package.json
+typescript     | ^0.22.6        | ^5.9.3     | dependencies   | package.json
+vite           | ^2.1.0         | ^7.1.9     | dependencies   | package.json
+vue            | ^3.4.0         | ^3.5.13    | dependencies   | package.json
+vue-router     | ^4.0.2         | ^4.5.1     | dependencies   | package.json",
   "args": [
     "--major",
   ],
@@ -16,6 +16,9 @@ vue-router     | ^4.0.2         | ^4.5.1     | package.json",
     {
       "catalogName": null,
       "currentSpecifier": "^4.1.0",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.json",
       "name": "express",
       "nextSpecifier": "^5.1.0",
@@ -25,6 +28,9 @@ vue-router     | ^4.0.2         | ^4.5.1     | package.json",
     {
       "catalogName": null,
       "currentSpecifier": "^0.22.6",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.json",
       "name": "typescript",
       "nextSpecifier": "^5.9.3",
@@ -34,6 +40,9 @@ vue-router     | ^4.0.2         | ^4.5.1     | package.json",
     {
       "catalogName": null,
       "currentSpecifier": "^2.1.0",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.json",
       "name": "vite",
       "nextSpecifier": "^7.1.9",
@@ -43,6 +52,9 @@ vue-router     | ^4.0.2         | ^4.5.1     | package.json",
     {
       "catalogName": null,
       "currentSpecifier": "^3.4.0",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.json",
       "name": "vue",
       "nextSpecifier": "^3.5.13",
@@ -52,6 +64,9 @@ vue-router     | ^4.0.2         | ^4.5.1     | package.json",
     {
       "catalogName": null,
       "currentSpecifier": "^4.0.2",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.json",
       "name": "vue-router",
       "nextSpecifier": "^4.5.1",
@@ -68,13 +83,13 @@ vue-router     | ^4.0.2         | ^4.5.1     | package.json",
     "yarn.lock": true,
   },
   "stdout": [
-    "dependencyName | currentVersion | newVersion
----------------|----------------|-----------
-express        | ^4.1.0         | ^5.1.0    
-typescript     | ^0.22.6        | ^5.9.3    
-vite           | ^2.1.0         | ^7.1.9    
-vue            | ^3.4.0         | ^3.5.13   
-vue-router     | ^4.0.2         | ^4.5.1    ",
+    "dependencyName | currentVersion | newVersion | dependencyType
+---------------|----------------|------------|---------------
+express        | ^4.1.0         | ^5.1.0     | dependencies  
+typescript     | ^0.22.6        | ^5.9.3     | dependencies  
+vite           | ^2.1.0         | ^7.1.9     | dependencies  
+vue            | ^3.4.0         | ^3.5.13    | dependencies  
+vue-router     | ^4.0.2         | ^4.5.1     | dependencies  ",
     "Updated 5 dependencies across 1 files.",
     "No supported lock files found.",
   ],

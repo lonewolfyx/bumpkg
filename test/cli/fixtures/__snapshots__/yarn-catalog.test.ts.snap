@@ -2,22 +2,25 @@
 
 exports[`yarn catalog fixture > matches the fixture snapshot 1`] = `
 {
-  "annotatedStdout": "dependencyName  | currentVersion | newVersion                  | source          | catalogName | filePath    
-----------------|----------------|-----------------------------|-----------------|-------------|-------------
-@types/lodash   | ^4.14.0        | ^4.14.191                   | devDependencies | -           | package.json
-lodash          | ^4.13.19       | ^4.17.21                    | dependencies    | -           | package.json
-multer          | ^0.1.8         | ^0.1.9                      | dependencies    | -           | package.json
-react           | ^18.2.0        | ^18.3.1                     | catalog         | -           | .yarnrc.yml 
-react           | ^18.2.0        | ^18.3.1                     | catalogs        | react18     | .yarnrc.yml 
-react-bootstrap | ^0.22.6        | ^0.22.7                     | dependencies    | -           | package.json
-react-dom       | ^18.2.0        | ^18.3.1                     | catalog         | -           | .yarnrc.yml 
-react-dom       | ^18.2.0        | ^18.3.1                     | catalogs        | react18     | .yarnrc.yml 
-webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies    | -           | package.json",
+  "annotatedStdout": "dependencyName  | currentVersion | newVersion                  | dependencyType  | source   | catalogName | filePath    
+----------------|----------------|-----------------------------|-----------------|----------|-------------|-------------
+@types/lodash   | ^4.14.0        | ^4.14.191                   | devDependencies | -        | -           | package.json
+lodash          | ^4.13.19       | ^4.17.21                    | dependencies    | -        | -           | package.json
+multer          | ^0.1.8         | ^0.1.9                      | dependencies    | -        | -           | package.json
+react           | ^18.2.0        | ^18.3.1                     | -               | catalog  | -           | .yarnrc.yml 
+react           | ^18.2.0        | ^18.3.1                     | -               | catalogs | react18     | .yarnrc.yml 
+react-bootstrap | ^0.22.6        | ^0.22.7                     | dependencies    | -        | -           | package.json
+react-dom       | ^18.2.0        | ^18.3.1                     | -               | catalog  | -           | .yarnrc.yml 
+react-dom       | ^18.2.0        | ^18.3.1                     | -               | catalogs | react18     | .yarnrc.yml 
+webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies    | -        | -           | package.json",
   "args": [],
   "candidates": [
     {
       "catalogName": null,
       "currentSpecifier": "^4.14.0",
+      "dependencyTypes": [
+        "devDependencies",
+      ],
       "filePath": "package.json",
       "name": "@types/lodash",
       "nextSpecifier": "^4.14.191",
@@ -27,6 +30,9 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
     {
       "catalogName": null,
       "currentSpecifier": "^4.13.19",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.json",
       "name": "lodash",
       "nextSpecifier": "^4.17.21",
@@ -36,6 +42,9 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
     {
       "catalogName": null,
       "currentSpecifier": "^0.1.8",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.json",
       "name": "multer",
       "nextSpecifier": "^0.1.9",
@@ -45,6 +54,7 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
     {
       "catalogName": null,
       "currentSpecifier": "^18.2.0",
+      "dependencyTypes": [],
       "filePath": ".yarnrc.yml",
       "name": "react",
       "nextSpecifier": "^18.3.1",
@@ -54,6 +64,7 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
     {
       "catalogName": "react18",
       "currentSpecifier": "^18.2.0",
+      "dependencyTypes": [],
       "filePath": ".yarnrc.yml",
       "name": "react",
       "nextSpecifier": "^18.3.1",
@@ -63,6 +74,9 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
     {
       "catalogName": null,
       "currentSpecifier": "^0.22.6",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.json",
       "name": "react-bootstrap",
       "nextSpecifier": "^0.22.7",
@@ -72,6 +86,7 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
     {
       "catalogName": null,
       "currentSpecifier": "^18.2.0",
+      "dependencyTypes": [],
       "filePath": ".yarnrc.yml",
       "name": "react-dom",
       "nextSpecifier": "^18.3.1",
@@ -81,6 +96,7 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
     {
       "catalogName": "react18",
       "currentSpecifier": "^18.2.0",
+      "dependencyTypes": [],
       "filePath": ".yarnrc.yml",
       "name": "react-dom",
       "nextSpecifier": "^18.3.1",
@@ -91,6 +107,9 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
       "availableMajorVersion": "5.101.5",
       "catalogName": null,
       "currentSpecifier": "~1.9.10",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.json",
       "name": "webpack",
       "nextSpecifier": "~1.12.0",
@@ -107,17 +126,17 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
     "yarn.lock": true,
   },
   "stdout": [
-    "dependencyName  | currentVersion | newVersion                  | source          | catalogName
-----------------|----------------|-----------------------------|-----------------|------------
-@types/lodash   | ^4.14.0        | ^4.14.191                   | devDependencies | -          
-lodash          | ^4.13.19       | ^4.17.21                    | dependencies    | -          
-multer          | ^0.1.8         | ^0.1.9                      | dependencies    | -          
-react           | ^18.2.0        | ^18.3.1                     | catalog         | -          
-react           | ^18.2.0        | ^18.3.1                     | catalogs        | react18    
-react-bootstrap | ^0.22.6        | ^0.22.7                     | dependencies    | -          
-react-dom       | ^18.2.0        | ^18.3.1                     | catalog         | -          
-react-dom       | ^18.2.0        | ^18.3.1                     | catalogs        | react18    
-webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies    | -          ",
+    "dependencyName  | currentVersion | newVersion                  | dependencyType  | source   | catalogName
+----------------|----------------|-----------------------------|-----------------|----------|------------
+@types/lodash   | ^4.14.0        | ^4.14.191                   | devDependencies | -        | -          
+lodash          | ^4.13.19       | ^4.17.21                    | dependencies    | -        | -          
+multer          | ^0.1.8         | ^0.1.9                      | dependencies    | -        | -          
+react           | ^18.2.0        | ^18.3.1                     | -               | catalog  | -          
+react           | ^18.2.0        | ^18.3.1                     | -               | catalogs | react18    
+react-bootstrap | ^0.22.6        | ^0.22.7                     | dependencies    | -        | -          
+react-dom       | ^18.2.0        | ^18.3.1                     | -               | catalog  | -          
+react-dom       | ^18.2.0        | ^18.3.1                     | -               | catalogs | react18    
+webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies    | -        | -          ",
     "Updated 9 dependencies across 2 files.",
     "Removed lock files: <fixtureRoot>/yarn.lock",
   ],

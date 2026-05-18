@@ -2,19 +2,22 @@
 
 exports[`package yml fixture > matches the fixture snapshot 1`] = `
 {
-  "annotatedStdout": "dependencyName | currentVersion | newVersion | filePath    
----------------|----------------|------------|-------------
-@types/lodash  | ^4.14.0        | ^4.14.191  | package.yaml
-lodash         | ^4.13.19       | ^4.17.21   | package.yaml
-multer         | ^0.1.8         | ^0.1.9     | package.yaml
-react          | ^19.1.1        | ^19.2.0    | package.yaml
-react-dom      | ^18.2.0        | ^18.3.1    | package.yaml
-webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
+  "annotatedStdout": "dependencyName | currentVersion | newVersion | dependencyType       | filePath    
+---------------|----------------|------------|----------------------|-------------
+@types/lodash  | ^4.14.0        | ^4.14.191  | devDependencies      | package.yaml
+lodash         | ^4.13.19       | ^4.17.21   | dependencies         | package.yaml
+multer         | ^0.1.8         | ^0.1.9     | optionalDependencies | package.yaml
+react          | ^19.1.1        | ^19.2.0    | dependencies         | package.yaml
+react-dom      | ^18.2.0        | ^18.3.1    | peerDependencies     | package.yaml
+webpack        | ~5.101.3       | ~5.101.5   | devDependencies      | package.yaml",
   "args": [],
   "candidates": [
     {
       "catalogName": null,
       "currentSpecifier": "^4.14.0",
+      "dependencyTypes": [
+        "devDependencies",
+      ],
       "filePath": "package.yaml",
       "name": "@types/lodash",
       "nextSpecifier": "^4.14.191",
@@ -24,6 +27,9 @@ webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
     {
       "catalogName": null,
       "currentSpecifier": "^4.13.19",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.yaml",
       "name": "lodash",
       "nextSpecifier": "^4.17.21",
@@ -33,6 +39,9 @@ webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
     {
       "catalogName": null,
       "currentSpecifier": "^0.1.8",
+      "dependencyTypes": [
+        "optionalDependencies",
+      ],
       "filePath": "package.yaml",
       "name": "multer",
       "nextSpecifier": "^0.1.9",
@@ -42,6 +51,9 @@ webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
     {
       "catalogName": null,
       "currentSpecifier": "^19.1.1",
+      "dependencyTypes": [
+        "dependencies",
+      ],
       "filePath": "package.yaml",
       "name": "react",
       "nextSpecifier": "^19.2.0",
@@ -51,6 +63,9 @@ webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
     {
       "catalogName": null,
       "currentSpecifier": "^18.2.0",
+      "dependencyTypes": [
+        "peerDependencies",
+      ],
       "filePath": "package.yaml",
       "name": "react-dom",
       "nextSpecifier": "^18.3.1",
@@ -60,6 +75,9 @@ webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
     {
       "catalogName": null,
       "currentSpecifier": "~5.101.3",
+      "dependencyTypes": [
+        "devDependencies",
+      ],
       "filePath": "package.yaml",
       "name": "webpack",
       "nextSpecifier": "~5.101.5",
@@ -76,14 +94,14 @@ webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
     "yarn.lock": true,
   },
   "stdout": [
-    "dependencyName | currentVersion | newVersion
----------------|----------------|-----------
-@types/lodash  | ^4.14.0        | ^4.14.191 
-lodash         | ^4.13.19       | ^4.17.21  
-multer         | ^0.1.8         | ^0.1.9    
-react          | ^19.1.1        | ^19.2.0   
-react-dom      | ^18.2.0        | ^18.3.1   
-webpack        | ~5.101.3       | ~5.101.5  ",
+    "dependencyName | currentVersion | newVersion | dependencyType      
+---------------|----------------|------------|---------------------
+@types/lodash  | ^4.14.0        | ^4.14.191  | devDependencies     
+lodash         | ^4.13.19       | ^4.17.21   | dependencies        
+multer         | ^0.1.8         | ^0.1.9     | optionalDependencies
+react          | ^19.1.1        | ^19.2.0    | dependencies        
+react-dom      | ^18.2.0        | ^18.3.1    | peerDependencies    
+webpack        | ~5.101.3       | ~5.101.5   | devDependencies     ",
     "Updated 6 dependencies across 1 files.",
     "No supported lock files found.",
   ],

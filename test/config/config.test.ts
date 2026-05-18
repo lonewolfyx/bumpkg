@@ -101,6 +101,51 @@ describe('resolveConfig', () => {
         ]))
     })
 
+    test('tracks which dependency nodes reference catalog entries', async () => {
+        const directory = await createTempDir('bumpkg-config-catalog-types')
+
+        try {
+            await writeJson(join(directory, 'package.json'), {
+                name: 'demo',
+                private: true,
+                dependencies: {
+                    react: 'catalog:',
+                },
+                devDependencies: {
+                    'react-dom': 'catalog:react18',
+                },
+            })
+            await writeText(join(directory, 'pnpm-lock.yaml'), 'lockfileVersion: "9.0"\n')
+            await writeText(join(directory, 'pnpm-workspace.yaml'), `packages:
+  - .
+catalog:
+  react: ^18.2.0
+catalogs:
+  react18:
+    react-dom: ^18.2.0
+`)
+
+            const config = await resolveConfig(createArgs(directory))
+
+            expect(config.catalogDependencies).toEqual(expect.arrayContaining([
+                expect.objectContaining({
+                    name: 'react',
+                    source: 'catalog',
+                    dependencyTypes: ['dependencies'],
+                }),
+                expect.objectContaining({
+                    name: 'react-dom',
+                    source: 'catalogs',
+                    catalogName: 'react18',
+                    dependencyTypes: ['devDependencies'],
+                }),
+            ]))
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
+
     test('collects yarn catalog entries from .yarnrc.yml', async () => {
         const cwd = join(fixturesDir, 'yarn-catalog')
         const config = await resolveConfig(createArgs(cwd))
@@ -291,11 +336,13 @@ describe('resolveConfig', () => {
             expect.objectContaining({
                 name: 'vue',
                 source: 'catalog',
+                dependencyTypes: [],
             }),
             expect.objectContaining({
                 name: 'vue',
                 source: 'catalogs',
                 catalogName: 'legacy',
+                dependencyTypes: [],
             }),
         ])
     })
