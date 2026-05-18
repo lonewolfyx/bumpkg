@@ -45,6 +45,7 @@ function applyManifestDependencyUpdates(
         if (
             candidate.source.source === 'dependencies'
             || candidate.source.source === 'devDependencies'
+            || candidate.source.source === 'peerDependencies'
             || candidate.source.source === 'optionalDependencies'
         ) {
             manifest[candidate.source.source] ??= {}
@@ -147,6 +148,7 @@ async function applyYamlManifestUpdates(
         const sectionPaths
             = candidate.source.source === 'dependencies'
                 || candidate.source.source === 'devDependencies'
+                || candidate.source.source === 'peerDependencies'
                 || candidate.source.source === 'optionalDependencies'
                 ? [[candidate.source.source]]
                 : candidate.source.source === 'catalog'

@@ -8,6 +8,7 @@ exports[`package yml fixture > matches the fixture snapshot 1`] = `
 lodash         | ^4.13.19       | ^4.17.21   | package.yaml
 multer         | ^0.1.8         | ^0.1.9     | package.yaml
 react          | ^19.1.1        | ^19.2.0    | package.yaml
+react-dom      | ^18.2.0        | ^18.3.1    | package.yaml
 webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
   "args": [],
   "candidates": [
@@ -49,6 +50,15 @@ webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
     },
     {
       "catalogName": null,
+      "currentSpecifier": "^18.2.0",
+      "filePath": "package.yaml",
+      "name": "react-dom",
+      "nextSpecifier": "^18.3.1",
+      "source": "peerDependencies",
+      "updateLevel": "minor",
+    },
+    {
+      "catalogName": null,
       "currentSpecifier": "~5.101.3",
       "filePath": "package.yaml",
       "name": "webpack",
@@ -59,6 +69,7 @@ webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
   ],
   "fixtureEntryPath": "/test/fixtures/package-yaml/package.yaml",
   "removedLocks": {
+    "bun.lock": true,
     "bun.lockb": true,
     "package-lock.json": true,
     "pnpm-lock.yaml": true,
@@ -71,8 +82,9 @@ webpack        | ~5.101.3       | ~5.101.5   | package.yaml",
 lodash         | ^4.13.19       | ^4.17.21  
 multer         | ^0.1.8         | ^0.1.9    
 react          | ^19.1.1        | ^19.2.0   
+react-dom      | ^18.2.0        | ^18.3.1   
 webpack        | ~5.101.3       | ~5.101.5  ",
-    "Updated 5 dependencies across 1 files.",
+    "Updated 6 dependencies across 1 files.",
     "No supported lock files found.",
   ],
   "trackedFiles": {
@@ -89,7 +101,7 @@ devDependencies:
   typescript: '3.5'
   webpack: ~5.101.5
 peerDependencies:
-  react-dom: ^18.2.0
+  react-dom: ^18.3.1
 optionalDependencies:
   multer: ^0.1.9
 packageManager: pnpm@10.19.0

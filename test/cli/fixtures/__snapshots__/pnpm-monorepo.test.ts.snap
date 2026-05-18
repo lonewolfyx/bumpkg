@@ -91,6 +91,7 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | packages/foo/pa
   ],
   "fixtureEntryPath": "/test/fixtures/monorepo/package.json",
   "removedLocks": {
+    "bun.lock": true,
     "bun.lockb": true,
     "package-lock.json": true,
     "pnpm-lock.yaml": true,
@@ -108,7 +109,7 @@ react-bootstrap | ^0.22.6        | ^0.22.7
 webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available)
 webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available)",
     "Updated 8 dependencies across 3 files.",
-    "No supported lock files found.",
+    "Removed lock files: <fixtureRoot>/pnpm-lock.yaml",
   ],
   "trackedFiles": {
     "package.json": "{

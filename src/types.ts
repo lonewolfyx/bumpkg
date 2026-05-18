@@ -8,21 +8,25 @@ export type CommandArgs = ParsedArgs<DeepWriteable<typeof import('./args').args>
 
 export type ManifestFormat = 'json' | 'yaml'
 
-export type DependencyType = 'dependencies' | 'devDependencies' | 'optionalDependencies'
+export type DependencyType = 'dependencies' | 'devDependencies' | 'peerDependencies' | 'optionalDependencies'
 
 export type CatalogDependencyType = 'catalog' | 'catalogs'
 
 export type DependencySource = DependencyType | CatalogDependencyType
 
+export type PackageManagement = 'npm' | 'pnpm' | 'yarn' | 'bun' | 'unknown'
+
 export type UpdateLevel = 'major' | 'minor' | 'patch'
 
 export interface PackageManifest {
     name?: string
+    packageManager?: string
     private?: boolean
     packages?: string[]
     workspaces?: string[] | WorkspaceConfig
     dependencies?: Record<string, string>
     devDependencies?: Record<string, string>
+    peerDependencies?: Record<string, string>
     optionalDependencies?: Record<string, string>
 }
 
@@ -48,34 +52,34 @@ export interface ProjectConfig {
     cwd: string
     rootDir: string
     rootPackagePath: string
+    packageManagement: PackageManagement
+    packageManager: string
     monorepo: boolean
     packages: string[]
     dependencies: DependencyEntry[]
     devDependencies: DependencyEntry[]
+    peerDependencies: DependencyEntry[]
     optionalDependencies: DependencyEntry[]
     catalogDependencies: DependencyEntry[]
     allDependencies: DependencyEntry[]
-    workspaceFilePath?: string
-    yarnConfigPath?: string
-}
-
-export interface PnpmWorkspaceContext {
-    filePath: string
-    rootPackagePath?: string
+    workspaceFilePath: string
     workspaceConfig: WorkspaceConfig
-    packagePaths: string[]
+    yarnConfigPath: string
+    yarnConfig: WorkspaceConfig
 }
 
 export interface PackageContext {
     rootDir: string
     rootPackagePath: string
     rootManifest: PackageManifest
+    packageManagement: PackageManagement
+    packageManager: string
     monorepo: boolean
     packages: string[]
-    workspaceFilePath?: string
-    workspaceConfig?: WorkspaceConfig
-    yarnConfigPath?: string
-    yarnConfig?: WorkspaceConfig
+    workspaceFilePath: string
+    workspaceConfig: WorkspaceConfig
+    yarnConfigPath: string
+    yarnConfig: WorkspaceConfig
 }
 
 export interface RegistryPackageMetadata {

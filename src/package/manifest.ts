@@ -5,8 +5,6 @@ import { parse, stringify } from 'yaml'
 import { YAML_FILE_EXTENSIONS } from '../constant'
 import { toPrettyJson } from '../utils'
 
-export const PACKAGE_MANIFEST_GLOB = 'package.{json,yaml,yml}'
-
 export function resolveManifestFormat(filePath: string): ManifestFormat {
     return YAML_FILE_EXTENSIONS.includes(extname(filePath) as typeof YAML_FILE_EXTENSIONS[number])
         ? 'yaml'

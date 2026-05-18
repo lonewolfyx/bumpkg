@@ -22,10 +22,20 @@ export interface FixtureScenario {
     prepareFixture?: (fixtureRoot: string) => Promise<void>
 }
 
+function createArgs(cwd: string) {
+    return {
+        c: '',
+        cwd,
+        major: false,
+        _: [''],
+    }
+}
+
 export const commonDependencyMetadata: Record<string, RegistryPackageMetadata> = {
     '@types/lodash': { name: '@types/lodash', versions: ['4.14.0', '4.14.191'], distTags: { latest: '4.14.191' } },
     'lodash': { name: 'lodash', versions: ['4.13.19', '4.17.21'], distTags: { latest: '4.17.21' } },
     'multer': { name: 'multer', versions: ['0.1.8', '0.1.9'], distTags: { latest: '0.1.9' } },
+    'react-dom': { name: 'react-dom', versions: ['18.2.0', '18.3.1'], distTags: { latest: '18.3.1' } },
     'react-bootstrap': { name: 'react-bootstrap', versions: ['0.22.6', '0.22.7'], distTags: { latest: '0.22.7' } },
     'webpack': { name: 'webpack', versions: ['1.9.10', '1.12.0', '5.101.3', '5.101.5'], distTags: { latest: '5.101.5' } },
 }
@@ -147,7 +157,7 @@ async function readTrackedFiles(rootDir: string, trackedFiles: string[]): Promis
 async function detectRemovedLocks(rootDir: string): Promise<Record<string, boolean>> {
     const results: Record<string, boolean> = {}
 
-    for (const fileName of ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lockb']) {
+    for (const fileName of ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb']) {
         try {
             await access(join(rootDir, fileName))
             results[fileName] = false
@@ -172,7 +182,7 @@ export async function runFixtureScenario(scenario: FixtureScenario) {
         if (scenario.prepareFixture)
             await scenario.prepareFixture(fixtureRoot)
 
-        const config = await resolveConfig(dirname(fixtureEntryPath))
+        const config = await resolveConfig(createArgs(dirname(fixtureEntryPath)))
         const checkResult = await checkUpdateDependencies(config, {
             fetchPackageMetadata,
             resolvePackageVersions,

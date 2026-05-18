@@ -9,6 +9,7 @@ describe('cleanupLockFiles', () => {
             '/project/package-lock.json',
             '/project/pnpm-lock.yaml',
             '/project/yarn.lock',
+            '/project/bun.lock',
             '/project/bun.lockb',
         ])
     })
@@ -54,7 +55,7 @@ describe('cleanupLockFiles', () => {
             const result = await cleanupLockFiles(directory)
 
             expect(result.removed).toHaveLength(0)
-            expect(result.missing).toHaveLength(4)
+            expect(result.missing).toHaveLength(5)
         }
         finally {
             await removeTempDir(directory)
