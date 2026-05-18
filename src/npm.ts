@@ -1,6 +1,7 @@
 import type {
     PackageVersionQuery,
     PackageVersionResolution,
+    ProjectConfig,
     RegistryPackageMetadata,
     VersionCacheEntry,
     VersionCacheFile,
@@ -61,10 +62,7 @@ async function mapWithConcurrency<T, R>(
     return results
 }
 
-async function readVersionCache(rootDir?: string): Promise<VersionCacheFile | null> {
-    if (!rootDir)
-        return null
-
+async function readVersionCache(rootDir: string): Promise<VersionCacheFile | null> {
     try {
         const cacheContent = await readFile(getVersionCachePath(rootDir), 'utf8')
         const cache = JSON.parse(cacheContent) as Partial<VersionCacheFile>
@@ -120,27 +118,16 @@ function resolveVersionFromMetadata(
     return stableVersions.filter(version => semver.satisfies(version, query.specifier)).at(-1) ?? null
 }
 
-function getErrorReason(error: unknown, fallback: string): string {
-    return error instanceof Error ? error.message : fallback
-}
-
-async function resolveRequestedRegistryUrl(registryUrl?: string): Promise<string> {
-    if (registryUrl)
-        return normalizeRegistryUrl(registryUrl)
-
-    return await resolveRegistryUrl()
-}
-
 export async function getPackageMetadata(
+    rootDir: string,
+    registryUrl: string,
     packageName: string,
     load: ReturnType<typeof progress>,
-    registryUrl?: string,
-    rootDir?: string,
 ): Promise<RegistryPackageMetadata> {
     const cache = await readVersionCache(rootDir)
     const cachedEntry = cache?.packages[packageName]
 
-    if (cachedEntry && isVersionCacheEntryFresh(cachedEntry) && (!registryUrl || cache?.registryUrl === normalizeRegistryUrl(registryUrl))) {
+    if (cachedEntry && isVersionCacheEntryFresh(cachedEntry)) {
         return {
             name: cachedEntry.name,
             versions: cachedEntry.versions,
@@ -150,9 +137,8 @@ export async function getPackageMetadata(
     }
 
     load.advance(1, `Analyzing package: ${packageName}`)
-    const normalizedRegistryUrl = await resolveRequestedRegistryUrl(registryUrl)
 
-    const response = await ofetch<NpmRegistryResponse>(`${normalizedRegistryUrl}${packageName.replace(/\//g, '%2f')}`, {
+    const response = await ofetch<NpmRegistryResponse>(`${registryUrl}${packageName.replace(/\//g, '%2f')}`, {
         headers: {
             'user-agent': `bumpkg node/${process.version}`,
             'accept': 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*',
@@ -173,42 +159,42 @@ export async function getPackageMetadata(
         ),
     }
 
-    if (rootDir) {
-        const nextCache: VersionCacheFile = {
-            registryUrl: normalizedRegistryUrl,
-            updatedAt: new Date().toISOString(),
-            packages: {
-                ...(cache?.registryUrl === normalizedRegistryUrl ? cache.packages : {}),
-                [packageName]: {
-                    name: metadata.name,
-                    fetchedAt: new Date().toISOString(),
-                    versions: metadata.versions,
-                    distTags: metadata.distTags,
-                    enginesByVersion: metadata.enginesByVersion,
-                },
+    const nextCache: VersionCacheFile = {
+        registryUrl,
+        updatedAt: new Date().toISOString(),
+        packages: {
+            ...(cache?.packages ?? {}),
+            [packageName]: {
+                name: metadata.name,
+                fetchedAt: new Date().toISOString(),
+                versions: metadata.versions,
+                distTags: metadata.distTags,
+                enginesByVersion: metadata.enginesByVersion,
             },
-        }
-        await writeVersionCache(rootDir, nextCache)
+        },
     }
+
+    await writeVersionCache(rootDir, nextCache)
 
     return metadata
 }
 
 export const resolvePackageVersions = async (
     queries: readonly PackageVersionQuery[],
-    registryUrl?: string,
-    rootDir?: string,
+    config: ProjectConfig,
 ): Promise<PackageVersionResolution[]> => {
     if (queries.length === 0)
         return []
 
+    const { rootDir } = config
+
     const uniquePackageNames = Array.from(new Set(queries.map(query => query.name)))
     const cache = await readVersionCache(rootDir)
     const packageMetadata = new Map<string, RegistryPackageMetadata>()
-    const requestedRegistryUrl = registryUrl ? normalizeRegistryUrl(registryUrl) : undefined
+
     const missingPackageNames = uniquePackageNames.filter((packageName) => {
         const cachedEntry = cache?.packages[packageName]
-        if (cachedEntry && isVersionCacheEntryFresh(cachedEntry) && (!requestedRegistryUrl || cache?.registryUrl === requestedRegistryUrl)) {
+        if (cachedEntry && isVersionCacheEntryFresh(cachedEntry)) {
             packageMetadata.set(packageName, {
                 name: cachedEntry.name,
                 versions: cachedEntry.versions,
@@ -221,9 +207,9 @@ export const resolvePackageVersions = async (
         return true
     })
 
-    const normalizedRegistryUrl = missingPackageNames.length > 0
-        ? await resolveRequestedRegistryUrl(registryUrl)
-        : requestedRegistryUrl ?? cache?.registryUrl ?? normalizeRegistryUrl(DEFAULT_REGISTRY_URL)
+    const registryUrl = missingPackageNames.length > 0
+        ? await resolveRegistryUrl()
+        : cache?.registryUrl ?? normalizeRegistryUrl(DEFAULT_REGISTRY_URL)
 
     const load = progress({
         indicator: 'timer',
@@ -239,13 +225,13 @@ export const resolvePackageVersions = async (
             try {
                 return {
                     packageName,
-                    metadata: await getPackageMetadata(packageName, load, normalizedRegistryUrl, rootDir),
+                    metadata: await getPackageMetadata(rootDir, registryUrl, packageName, load),
                 }
             }
-            catch (error) {
+            catch {
                 return {
                     packageName,
-                    error: getErrorReason(error, 'Failed to fetch package metadata'),
+                    error: 'Failed to fetch package metadata',
                 }
             }
         },
@@ -264,10 +250,8 @@ export const resolvePackageVersions = async (
         ...successfulMetadataEntries,
     ])
 
-    if (rootDir && successfulMetadataEntries.length > 0) {
-        const nextPackages = {
-            ...(cache?.registryUrl === normalizedRegistryUrl ? cache.packages : {}),
-        } as Record<string, VersionCacheEntry>
+    if (successfulMetadataEntries.length > 0) {
+        const nextPackages = {} as Record<string, VersionCacheEntry>
 
         for (const [packageName, metadata] of successfulMetadataEntries) {
             nextPackages[packageName] = {
@@ -280,7 +264,7 @@ export const resolvePackageVersions = async (
         }
 
         await writeVersionCache(rootDir, {
-            registryUrl: normalizedRegistryUrl,
+            registryUrl,
             updatedAt: new Date().toISOString(),
             packages: nextPackages,
         })

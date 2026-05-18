@@ -114,7 +114,7 @@ export async function checkUpdateDependencies(config: ProjectConfig, options: Co
         })
     }
 
-    const resolutions = await resolvePackageVersions(Array.from(uniqueQueries.values()), undefined, config.rootDir)
+    const resolutions = await resolvePackageVersions(Array.from(uniqueQueries.values()), config)
     const resolutionMap = new Map(
         resolutions.map(resolution => [toQueryKey(resolution.name, resolution.specifier), resolution]),
     )
