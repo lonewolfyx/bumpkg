@@ -1,7 +1,7 @@
-import type { CommandArgs, DependencyEntry, DependencyType, PackageManagement, ProjectConfig } from './types'
+import type { CatalogDependencyType, CommandArgs, DependencyEntry, DependencyType, PackageManagement, ProjectConfig } from './types'
 import { DEPENDENCY_FIELDS } from './constant'
 import { getBunWorkspaceConfig } from './package/bun'
-import { extractCatalogEntries } from './package/catalog'
+import { createCatalogEntryKey, extractCatalogEntries } from './package/catalog'
 import { collectDependencyEntries } from './package/dependency'
 import { readProjectManifest } from './package/manifest'
 import { resolvePackageContext } from './package/project'
@@ -10,6 +10,7 @@ function resolveCatalogDependencies(
     packageManagement: PackageManagement,
     config: Pick<ProjectConfig, 'rootPackagePath' | 'workspaceFilePath' | 'workspaceConfig' | 'yarnConfigPath' | 'yarnConfig'>,
     rootManifest: Awaited<ReturnType<typeof readProjectManifest>>,
+    catalogDependencyTypes: ReadonlyMap<string, DependencyType[]>,
 ) {
     const entries: DependencyEntry[] = []
 
@@ -17,16 +18,54 @@ function resolveCatalogDependencies(
         const bunWorkspaceConfig = getBunWorkspaceConfig(rootManifest)
 
         if (bunWorkspaceConfig)
-            entries.push(...extractCatalogEntries(config.rootPackagePath, bunWorkspaceConfig))
+            entries.push(...extractCatalogEntries(config.rootPackagePath, bunWorkspaceConfig, catalogDependencyTypes))
     }
 
     if (config.workspaceFilePath)
-        entries.push(...extractCatalogEntries(config.workspaceFilePath, config.workspaceConfig))
+        entries.push(...extractCatalogEntries(config.workspaceFilePath, config.workspaceConfig, catalogDependencyTypes))
 
     if (packageManagement === 'yarn' && config.yarnConfigPath)
-        entries.push(...extractCatalogEntries(config.yarnConfigPath, config.yarnConfig))
+        entries.push(...extractCatalogEntries(config.yarnConfigPath, config.yarnConfig, catalogDependencyTypes))
 
     return entries
+}
+
+function parseCatalogReference(specifier: string): { source: CatalogDependencyType, catalogName?: string } | null {
+    if (!specifier.startsWith('catalog:'))
+        return null
+
+    const catalogName = specifier.slice('catalog:'.length).trim()
+    return catalogName
+        ? { source: 'catalogs', catalogName }
+        : { source: 'catalog' }
+}
+
+function collectCatalogDependencyTypes(
+    manifests: Array<{ packagePath: string, manifest: Awaited<ReturnType<typeof readProjectManifest>> }>,
+): Map<string, DependencyType[]> {
+    const catalogDependencyTypes = new Map<string, Set<DependencyType>>()
+
+    for (const { manifest } of manifests) {
+        for (const field of DEPENDENCY_FIELDS) {
+            for (const [name, specifier] of Object.entries(manifest[field] ?? {})) {
+                const reference = parseCatalogReference(specifier)
+                if (!reference)
+                    continue
+
+                const key = createCatalogEntryKey(name, reference.source, reference.catalogName)
+                const dependencyTypes = catalogDependencyTypes.get(key) ?? new Set<DependencyType>()
+                dependencyTypes.add(field)
+                catalogDependencyTypes.set(key, dependencyTypes)
+            }
+        }
+    }
+
+    return new Map(
+        Array.from(catalogDependencyTypes.entries()).map(([key, dependencyTypes]) => [
+            key,
+            DEPENDENCY_FIELDS.filter(field => dependencyTypes.has(field)),
+        ]),
+    )
 }
 
 export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig> {
@@ -58,6 +97,7 @@ export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig
                 : await readProjectManifest(packagePath),
         })),
     )
+    const catalogDependencyTypes = collectCatalogDependencyTypes(manifests)
 
     const {
         dependencies,
@@ -82,7 +122,7 @@ export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig
         workspaceConfig,
         yarnConfigPath,
         yarnConfig,
-    }, rootManifest)
+    }, rootManifest, catalogDependencyTypes)
 
     return {
         cwd,

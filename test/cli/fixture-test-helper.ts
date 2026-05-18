@@ -7,6 +7,7 @@ import { checkUpdateDependencies } from '@/check'
 import { formatCandidateNextVersion, runCliWithOptions } from '@/cli-runner'
 import { resolveConfig } from '@/config'
 import * as npmModule from '@/npm'
+import { getDependencyTypes } from '@/utils'
 import { createTempDir, removeTempDir } from '../helpers'
 
 vi.mock('@clack/prompts', () => ({
@@ -49,6 +50,7 @@ export const catalogDependencyMetadata: Record<string, RegistryPackageMetadata> 
 function renderAnnotatedStdout(candidates: Array<{
     catalogName: string | null
     currentSpecifier: string
+    dependencyTypes: string[]
     filePath: string
     name: string
     nextSpecifier: string
@@ -59,22 +61,25 @@ function renderAnnotatedStdout(candidates: Array<{
 }>): string {
     const showCatalogColumns = candidates.some(candidate => candidate.source === 'catalog' || candidate.source === 'catalogs')
     const headers = showCatalogColumns
-        ? ['dependencyName', 'currentVersion', 'newVersion', 'source', 'catalogName', 'filePath']
-        : ['dependencyName', 'currentVersion', 'newVersion', 'filePath']
+        ? ['dependencyName', 'currentVersion', 'newVersion', 'dependencyType', 'source', 'catalogName', 'filePath']
+        : ['dependencyName', 'currentVersion', 'newVersion', 'dependencyType', 'filePath']
     const rows = candidates.map((candidate) => {
         const baseColumns = [
             candidate.name,
             candidate.currentSpecifier,
             formatCandidateNextVersion(candidate),
+            candidate.dependencyTypes.join(', ') || '-',
         ]
 
         if (!showCatalogColumns)
             return [...baseColumns, candidate.filePath]
 
+        const isCatalogCandidate = candidate.source === 'catalog' || candidate.source === 'catalogs'
+
         return [
             ...baseColumns,
-            candidate.source,
-            candidate.catalogName ?? '-',
+            isCatalogCandidate ? candidate.source : '-',
+            isCatalogCandidate ? (candidate.catalogName ?? '-') : '-',
             candidate.filePath,
         ]
     })
@@ -204,6 +209,7 @@ export async function runFixtureScenario(scenario: FixtureScenario) {
         const candidates = checkResult.candidates.map(candidate => ({
             catalogName: candidate.source.catalogName ?? null,
             currentSpecifier: candidate.currentSpecifier,
+            dependencyTypes: getDependencyTypes(candidate.source),
             filePath: relative(fixtureRoot, candidate.source.filePath),
             name: candidate.name,
             nextSpecifier: candidate.nextSpecifier,

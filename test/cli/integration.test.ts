@@ -231,4 +231,47 @@ describe('cli integration', () => {
             await removeTempDir(directory)
         }
     })
+
+    test('skips scoped packages when cache only contains higher major versions in default mode', async () => {
+        const directory = await createTempDir('bumpkg-cli-cache-major-only')
+        const output: string[] = []
+
+        try {
+            await writeJson(join(directory, 'package.json'), {
+                name: 'demo',
+                devDependencies: {
+                    '@antfu/eslint-config': '^6.7.3',
+                },
+            })
+            await writeJson(join(directory, 'node_modules/.bumpkg/version.json'), {
+                registryUrl: 'https://registry.npmjs.org/',
+                updatedAt: new Date().toISOString(),
+                packages: {
+                    '@antfu/eslint-config': {
+                        name: '@antfu/eslint-config',
+                        fetchedAt: new Date().toISOString(),
+                        versions: ['6.7.3', '7.7.3', '9.0.0'],
+                        distTags: {
+                            latest: '9.0.0',
+                        },
+                    },
+                },
+            })
+
+            vi.spyOn(console, 'log').mockImplementation((message: string) => output.push(message))
+            vi.spyOn(console, 'error').mockImplementation(() => {})
+            const fetchSpy = vi.mocked(ofetch)
+            fetchSpy.mockClear()
+            vi.mocked(confirm).mockClear()
+
+            await runCliWithOptions({ c: '', cwd: directory, major: false, _: [''] })
+
+            expect(fetchSpy).not.toHaveBeenCalled()
+            expect(output).toEqual(['No updatable dependencies found.'])
+            expect(confirm).not.toHaveBeenCalled()
+        }
+        finally {
+            await removeTempDir(directory)
+        }
+    })
 })

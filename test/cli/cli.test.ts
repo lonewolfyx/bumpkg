@@ -86,13 +86,19 @@ describe('cli helpers', () => {
 
         await runCliWithOptions({ c: '', cwd: '/tmp/demo', major: false, _: [''] })
 
-        expect(mocks.resolveSpy).toHaveBeenCalledWith('/tmp/demo')
+        expect(mocks.resolveSpy).toHaveBeenCalledWith({
+            c: '',
+            cwd: '/tmp/demo',
+            major: false,
+            _: [''],
+        })
     })
 
     test('renders the default table headers for regular dependencies', () => {
         expect(renderUpdateTable([createCandidate()])).toContain('dependencyName')
         expect(renderUpdateTable([createCandidate()])).toContain('currentVersion')
         expect(renderUpdateTable([createCandidate()])).toContain('newVersion')
+        expect(renderUpdateTable([createCandidate()])).toContain('dependencyType')
         expect(renderUpdateTable([createCandidate()])).not.toContain('catalogName')
         expect(renderUpdateTable([createCandidate()])).not.toContain('source')
     })
@@ -111,11 +117,13 @@ describe('cli helpers', () => {
                 ...createCandidate().source,
                 source: 'catalogs',
                 catalogName: 'lint',
+                dependencyTypes: ['devDependencies'],
                 filePath: '/project/pnpm-workspace.yaml',
             },
         }])
 
         expect(table).toContain('^7.7.3 (9.0.0 available, requires node >=18.18.0)')
+        expect(table).toContain('devDependencies')
         expect(table).toContain('catalogs')
         expect(table).toContain('lint')
         expect(table).not.toContain('/project/pnpm-workspace.yaml')

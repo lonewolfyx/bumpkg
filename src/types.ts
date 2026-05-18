@@ -41,6 +41,7 @@ export interface DependencyLocation {
     source: DependencySource
     manifestFormat: ManifestFormat
     catalogName?: string
+    dependencyTypes?: DependencyType[]
 }
 
 export interface DependencyEntry extends DependencyLocation {

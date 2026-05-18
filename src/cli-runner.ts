@@ -5,6 +5,7 @@ import { resolveConfig } from './config'
 import { CLI_BASE_TABLE_HEADERS, CLI_CATALOG_TABLE_HEADERS } from './constant'
 import { cleanupLockFiles } from './lock'
 import { applyDependencyUpdates } from './update'
+import { getDependencyTypes } from './utils'
 
 export function formatCandidateNextVersion(candidate: Pick<UpdateCandidate, 'nextSpecifier' | 'targetNodeRequirement' | 'availableMajorVersion' | 'availableMajorNodeRequirement'>): string {
     const notes: string[] = []
@@ -36,15 +37,18 @@ export function renderUpdateTable(candidates: UpdateCandidate[]): string {
             candidate.name,
             candidate.currentSpecifier,
             formatCandidateNextVersion(candidate),
+            getDependencyTypes(candidate.source).join(', ') || '-',
         ]
 
         if (!showCatalogColumns)
             return baseColumns
 
+        const isCatalogCandidate = candidate.source.source === 'catalog' || candidate.source.source === 'catalogs'
+
         return [
             ...baseColumns,
-            candidate.source.source,
-            candidate.source.catalogName ?? '-',
+            isCatalogCandidate ? candidate.source.source : '-',
+            isCatalogCandidate ? (candidate.source.catalogName ?? '-') : '-',
         ]
     })
 

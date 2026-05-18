@@ -26,6 +26,7 @@ export const CLI_BASE_TABLE_HEADERS = [
     'dependencyName',
     'currentVersion',
     'newVersion',
+    'dependencyType',
 ] as const
 
 export const CLI_CATALOG_TABLE_HEADERS = [
