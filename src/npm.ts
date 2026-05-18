@@ -7,7 +7,9 @@ import type {
 } from './types'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { progress } from '@clack/prompts'
 import { ofetch } from 'ofetch'
+import pc from 'picocolors'
 import semver from 'semver'
 import { DEFAULT_REGISTRY_URL } from './constant'
 import { resolveRegistryUrl } from './registry'
@@ -131,6 +133,7 @@ async function resolveRequestedRegistryUrl(registryUrl?: string): Promise<string
 
 export async function getPackageMetadata(
     packageName: string,
+    load: ReturnType<typeof progress>,
     registryUrl?: string,
     rootDir?: string,
 ): Promise<RegistryPackageMetadata> {
@@ -146,6 +149,7 @@ export async function getPackageMetadata(
         }
     }
 
+    load.advance(1, `Analyzing package: ${packageName}`)
     const normalizedRegistryUrl = await resolveRequestedRegistryUrl(registryUrl)
 
     const response = await ofetch<NpmRegistryResponse>(`${normalizedRegistryUrl}${packageName.replace(/\//g, '%2f')}`, {
@@ -190,14 +194,6 @@ export async function getPackageMetadata(
     return metadata
 }
 
-export async function getNpmRegistryMetadata(
-    packageName: string,
-    registryUrl?: string,
-    rootDir?: string,
-): Promise<RegistryPackageMetadata> {
-    return await getPackageMetadata(packageName, registryUrl, rootDir)
-}
-
 export const resolvePackageVersions = async (
     queries: readonly PackageVersionQuery[],
     registryUrl?: string,
@@ -229,6 +225,13 @@ export const resolvePackageVersions = async (
         ? await resolveRequestedRegistryUrl(registryUrl)
         : requestedRegistryUrl ?? cache?.registryUrl ?? normalizeRegistryUrl(DEFAULT_REGISTRY_URL)
 
+    const load = progress({
+        indicator: 'timer',
+        style: 'block',
+        max: uniquePackageNames.length,
+    })
+
+    load.start('Detecting dependency versions...')
     const metadataResults = await mapWithConcurrency(
         missingPackageNames,
         REGISTRY_REQUEST_CONCURRENCY,
@@ -236,7 +239,7 @@ export const resolvePackageVersions = async (
             try {
                 return {
                     packageName,
-                    metadata: await getPackageMetadata(packageName, normalizedRegistryUrl),
+                    metadata: await getPackageMetadata(packageName, load, normalizedRegistryUrl, rootDir),
                 }
             }
             catch (error) {
@@ -247,6 +250,7 @@ export const resolvePackageVersions = async (
             }
         },
     )
+
     const successfulMetadataEntries = metadataResults.flatMap(result =>
         result.metadata ? [[result.packageName, result.metadata] as const] : [],
     )
@@ -282,7 +286,9 @@ export const resolvePackageVersions = async (
         })
     }
 
-    return queries.map((query) => {
+    const packageMetas = queries.map((query) => {
+        load.advance(1, `Analyzing package: ${pc.red(query.name)}`)
+
         const lookupError = failedMetadataLookup.get(query.name)
         if (lookupError) {
             return {
@@ -304,4 +310,8 @@ export const resolvePackageVersions = async (
             version: resolveVersionFromMetadata(query, metadata),
         }
     })
+
+    load.stop(`Version detection complete. (${pc.red(uniquePackageNames.length)} packages)`)
+
+    return packageMetas
 }
