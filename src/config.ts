@@ -1,4 +1,4 @@
-import type { CommandArgs, DependencyType, ProjectConfig } from './types'
+import type { CommandArgs, DependencyEntry, DependencyType, PackageManagement, ProjectConfig } from './types'
 import { DEPENDENCY_FIELDS } from './constant'
 import { getBunWorkspaceConfig } from './package/bun'
 import { extractCatalogEntries } from './package/catalog'
@@ -6,14 +6,41 @@ import { collectDependencyEntries } from './package/dependency'
 import { readProjectManifest } from './package/manifest'
 import { resolvePackageContext } from './package/project'
 
+function resolveCatalogDependencies(
+    packageManagement: PackageManagement,
+    config: Pick<ProjectConfig, 'rootPackagePath' | 'workspaceFilePath' | 'workspaceConfig' | 'yarnConfigPath' | 'yarnConfig'>,
+    rootManifest: Awaited<ReturnType<typeof readProjectManifest>>,
+) {
+    const entries: DependencyEntry[] = []
+
+    if (packageManagement === 'bun') {
+        const bunWorkspaceConfig = getBunWorkspaceConfig(rootManifest)
+
+        if (bunWorkspaceConfig)
+            entries.push(...extractCatalogEntries(config.rootPackagePath, bunWorkspaceConfig))
+    }
+
+    if (config.workspaceFilePath)
+        entries.push(...extractCatalogEntries(config.workspaceFilePath, config.workspaceConfig))
+
+    if (packageManagement === 'yarn' && config.yarnConfigPath)
+        entries.push(...extractCatalogEntries(config.yarnConfigPath, config.yarnConfig))
+
+    return entries
+}
+
 export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig> {
     const { cwd } = options
     const packageContext = await resolvePackageContext(cwd)
-
+    const packagePaths = packageContext.monorepo
+        ? packageContext.packages
+        : [packageContext.rootPackagePath]
     const manifests = await Promise.all(
-        packageContext.packages.map(async packagePath => ({
+        packagePaths.map(async packagePath => ({
             packagePath,
-            manifest: await readProjectManifest(packagePath),
+            manifest: packagePath === packageContext.rootPackagePath
+                ? packageContext.rootManifest
+                : await readProjectManifest(packagePath),
         })),
     )
 
@@ -25,39 +52,40 @@ export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig
     }, {
         dependencies: [],
         devDependencies: [],
+        peerDependencies: [],
         optionalDependencies: [],
     })
-    const dependencies = dependenciesByType.dependencies
-    const devDependencies = dependenciesByType.devDependencies
-    const optionalDependencies = dependenciesByType.optionalDependencies
-    const bunWorkspaceConfig = getBunWorkspaceConfig(packageContext.rootManifest)
-    const catalogDependencies = [
-        ...(bunWorkspaceConfig ? extractCatalogEntries(packageContext.rootPackagePath, bunWorkspaceConfig) : []),
-        ...(packageContext.workspaceFilePath && packageContext.workspaceConfig
-            ? extractCatalogEntries(packageContext.workspaceFilePath, packageContext.workspaceConfig)
-            : []),
-        ...(packageContext.yarnConfigPath && packageContext.yarnConfig
-            ? extractCatalogEntries(packageContext.yarnConfigPath, packageContext.yarnConfig)
-            : []),
-    ]
+    const catalogDependencies = resolveCatalogDependencies(packageContext.packageManagement, {
+        rootPackagePath: packageContext.rootPackagePath,
+        workspaceFilePath: packageContext.workspaceFilePath,
+        workspaceConfig: packageContext.workspaceConfig,
+        yarnConfigPath: packageContext.yarnConfigPath,
+        yarnConfig: packageContext.yarnConfig,
+    }, packageContext.rootManifest)
 
     return {
         cwd,
         rootDir: packageContext.rootDir,
         rootPackagePath: packageContext.rootPackagePath,
+        packageManagement: packageContext.packageManagement,
+        packageManager: packageContext.packageManager,
         monorepo: packageContext.monorepo,
-        packages: packageContext.packages,
-        dependencies,
-        devDependencies,
-        optionalDependencies,
+        packages: packagePaths,
+        dependencies: dependenciesByType.dependencies,
+        devDependencies: dependenciesByType.devDependencies,
+        peerDependencies: dependenciesByType.peerDependencies,
+        optionalDependencies: dependenciesByType.optionalDependencies,
         catalogDependencies,
         allDependencies: [
-            ...dependencies,
-            ...devDependencies,
-            ...optionalDependencies,
+            ...dependenciesByType.dependencies,
+            ...dependenciesByType.devDependencies,
+            ...dependenciesByType.peerDependencies,
+            ...dependenciesByType.optionalDependencies,
             ...catalogDependencies,
         ],
         workspaceFilePath: packageContext.workspaceFilePath,
+        workspaceConfig: packageContext.workspaceConfig,
         yarnConfigPath: packageContext.yarnConfigPath,
+        yarnConfig: packageContext.yarnConfig,
     }
 }

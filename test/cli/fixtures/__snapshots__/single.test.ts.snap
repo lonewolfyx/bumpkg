@@ -60,6 +60,7 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | package.json",
   ],
   "fixtureEntryPath": "/test/fixtures/single/package.json",
   "removedLocks": {
+    "bun.lock": true,
     "bun.lockb": true,
     "package-lock.json": true,
     "pnpm-lock.yaml": true,

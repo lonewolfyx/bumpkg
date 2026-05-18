@@ -1,84 +1,111 @@
-import type { PackageContext } from '../types'
+import type { PackageContext, WorkspaceConfig } from '../types'
 import { dirname } from 'node:path'
-import { findUp, findUpMultiple } from 'find-up'
-import { PACKAGE_MANIFEST_NAMES } from '../constant'
+import { findUp } from 'find-up'
+import { glob } from 'glob'
+import { PACKAGE_MANIFEST_GLOB } from '@/constant.ts'
+import { getPackageManagement } from './manager'
 import { readProjectManifest } from './manifest'
-import { resolvePnpmWorkspaceContext } from './pnpm'
-import { collectWorkspacePackagePaths, getManifestWorkspacePatterns } from './workspace'
+import { getManifestWorkspacePatterns } from './workspace'
 import { readYarnConfig } from './yarn'
 
+function hasWorkspacePackages(workspaceConfig: WorkspaceConfig): boolean {
+    return (workspaceConfig.packages?.length ?? 0) > 0
+}
+
 export async function resolvePackageContext(cwd: string): Promise<PackageContext> {
-    const [manifestPaths, pnpmWorkspaceContext, yarnConfigPath] = await Promise.all([
-        findUpMultiple(PACKAGE_MANIFEST_NAMES, {
+    const [nearestManifestPath, packageManagement] = await Promise.all([
+        findUp(async currentDir => (await glob(PACKAGE_MANIFEST_GLOB, {
+            cwd: currentDir,
+            nodir: true,
+        })).sort()[0], {
             cwd,
-            type: 'file',
         }),
-        resolvePnpmWorkspaceContext(cwd),
-        findUp('.yarnrc.yml', {
-            cwd,
-            type: 'file',
-        }),
+        getPackageManagement(cwd),
     ])
-    const nearestManifestPath = manifestPaths[0]
 
     if (!nearestManifestPath)
         throw new Error(`Unable to locate package manifest from ${cwd}`)
 
-    const [manifestEntries, yarnConfig] = await Promise.all([
-        Promise.all(
-            manifestPaths.map(async manifestPath => [manifestPath, await readProjectManifest(manifestPath)] as const),
-        ),
-        yarnConfigPath ? readYarnConfig(yarnConfigPath) : Promise.resolve(undefined),
-    ])
+    let rootPackagePath = nearestManifestPath
+    let rootManifest = await readProjectManifest(rootPackagePath)
+    let workspaceFilePath = ''
+    let workspaceConfig: WorkspaceConfig = {}
+    let yarnConfigPath = ''
+    let yarnConfig: WorkspaceConfig = {}
 
-    const pnpmWorkspaceRoot = pnpmWorkspaceContext?.rootPackagePath && pnpmWorkspaceContext.packagePaths.includes(nearestManifestPath)
-        ? pnpmWorkspaceContext.rootPackagePath
-        : undefined
-    let rootPackagePath = pnpmWorkspaceRoot ?? nearestManifestPath
+    const manifestWorkspacePatterns = getManifestWorkspacePatterns(rootManifest)
+    let monorepo = manifestWorkspacePatterns.length > 0
 
-    if (!pnpmWorkspaceRoot) {
-        const workspaceOwners = await Promise.all(
-            manifestEntries.map(async ([manifestPath, manifest]) => {
-                const workspacePatterns = getManifestWorkspacePatterns(manifest)
+    if (!monorepo) {
+        const pnpmWorkspacePath = await findUp('pnpm-workspace.yaml', {
+            cwd,
+            type: 'file',
+        })
 
-                if (workspacePatterns.length === 0)
-                    return undefined
+        if (pnpmWorkspacePath) {
+            const pnpmWorkspaceConfig = await readYarnConfig(pnpmWorkspacePath)
 
-                const packagePaths = await collectWorkspacePackagePaths(
-                    dirname(manifestPath),
-                    manifestPath,
-                    workspacePatterns,
-                )
+            if (hasWorkspacePackages(pnpmWorkspaceConfig)) {
+                workspaceFilePath = pnpmWorkspacePath
+                workspaceConfig = pnpmWorkspaceConfig
+                monorepo = true
 
-                return packagePaths.includes(nearestManifestPath) ? manifestPath : undefined
-            }),
-        )
+                const workspaceRootDir = dirname(pnpmWorkspacePath)
+                const workspaceRootPackagePath = await findUp(async currentDir => (await glob(PACKAGE_MANIFEST_GLOB, {
+                    cwd: currentDir,
+                    nodir: true,
+                })).sort()[0], {
+                    cwd: workspaceRootDir,
+                    stopAt: workspaceRootDir,
+                })
 
-        rootPackagePath = workspaceOwners.find(Boolean) ?? nearestManifestPath
+                if (workspaceRootPackagePath) {
+                    rootPackagePath = workspaceRootPackagePath
+                    rootManifest = workspaceRootPackagePath === nearestManifestPath
+                        ? rootManifest
+                        : await readProjectManifest(workspaceRootPackagePath)
+                }
+            }
+        }
     }
 
-    const rootManifest = manifestEntries.find(([manifestPath]) => manifestPath === rootPackagePath)?.[1]
-        ?? await readProjectManifest(rootPackagePath)
-    const activePnpmWorkspace = pnpmWorkspaceRoot === rootPackagePath
-        ? pnpmWorkspaceContext
-        : undefined
-    const workspacePatterns = [
-        ...getManifestWorkspacePatterns(rootManifest),
-        ...(activePnpmWorkspace?.workspaceConfig.packages ?? []),
-    ]
-    const monorepo = workspacePatterns.length > 0
+    if (packageManagement === 'yarn') {
+        yarnConfigPath = await findUp('.yarnrc.yml', {
+            cwd,
+            type: 'file',
+        }) ?? ''
+        yarnConfig = yarnConfigPath ? await readYarnConfig(yarnConfigPath) : {}
+    }
+
+    if (packageManagement === 'bun' && !workspaceFilePath) {
+        const bunWorkspaceConfig = getManifestWorkspacePatterns(rootManifest).length > 0 && !Array.isArray(rootManifest.workspaces)
+            ? rootManifest.workspaces
+            : undefined
+
+        if (bunWorkspaceConfig) {
+            workspaceConfig = bunWorkspaceConfig
+        }
+    }
+
     const packages = monorepo
-        ? await collectWorkspacePackagePaths(dirname(rootPackagePath), rootPackagePath, workspacePatterns)
+        ? await glob(`**/${PACKAGE_MANIFEST_GLOB}`, {
+                absolute: true,
+                cwd: dirname(rootPackagePath),
+                ignore: ['**/node_modules/**'],
+                nodir: true,
+            }).then(matches => Array.from(new Set([rootPackagePath, ...matches])).sort())
         : [rootPackagePath]
 
     return {
         rootDir: dirname(rootPackagePath),
         rootPackagePath,
         rootManifest,
+        packageManagement,
+        packageManager: rootManifest.packageManager ?? '',
         monorepo,
         packages,
-        workspaceFilePath: activePnpmWorkspace?.filePath,
-        workspaceConfig: activePnpmWorkspace?.workspaceConfig,
+        workspaceFilePath,
+        workspaceConfig,
         yarnConfigPath,
         yarnConfig,
     }

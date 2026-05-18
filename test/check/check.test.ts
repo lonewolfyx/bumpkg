@@ -6,13 +6,20 @@ function createProjectConfig(entries: DependencyEntry[]): ProjectConfig {
         cwd: '/project',
         rootDir: '/project',
         rootPackagePath: '/project/package.json',
+        packageManagement: 'unknown',
+        packageManager: '',
         monorepo: false,
         packages: ['/project/package.json'],
         dependencies: entries.filter(entry => entry.source === 'dependencies'),
         devDependencies: entries.filter(entry => entry.source === 'devDependencies'),
+        peerDependencies: entries.filter(entry => entry.source === 'peerDependencies'),
         optionalDependencies: entries.filter(entry => entry.source === 'optionalDependencies'),
         catalogDependencies: entries.filter(entry => entry.source === 'catalog' || entry.source === 'catalogs'),
         allDependencies: entries,
+        workspaceFilePath: '',
+        workspaceConfig: {},
+        yarnConfigPath: '',
+        yarnConfig: {},
     }
 }
 

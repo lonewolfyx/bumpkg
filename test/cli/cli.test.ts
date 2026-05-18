@@ -16,13 +16,20 @@ function createProjectConfig(): ProjectConfig {
         cwd: '/project',
         rootDir: '/project',
         rootPackagePath: '/project/package.json',
+        packageManagement: 'unknown',
+        packageManager: '',
         monorepo: false,
         packages: ['/project/package.json'],
         dependencies: [],
         devDependencies: [],
+        peerDependencies: [],
         optionalDependencies: [],
         catalogDependencies: [],
         allDependencies: [],
+        workspaceFilePath: '',
+        workspaceConfig: {},
+        yarnConfigPath: '',
+        yarnConfig: {},
     }
 }
 

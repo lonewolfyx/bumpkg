@@ -8,6 +8,15 @@ import { createTempDir, removeTempDir, writeJson, writeText } from '../helpers'
 
 const fixturesDir = join(process.cwd(), 'test', 'fixtures')
 
+function createArgs(cwd: string) {
+    return {
+        c: '',
+        cwd,
+        major: false,
+        _: [''],
+    }
+}
+
 describe('resolveConfig', () => {
     afterEach(() => {
         vi.clearAllMocks()
@@ -15,12 +24,18 @@ describe('resolveConfig', () => {
 
     test('resolves a single package project', async () => {
         const cwd = join(fixturesDir, 'single')
-        const config = await resolveConfig(cwd)
+        const config = await resolveConfig(createArgs(cwd))
 
         expect(config.monorepo).toBe(false)
+        expect(config.packageManagement).toBe('pnpm')
+        expect(config.packageManager).toBe('')
         expect(config.packages).toEqual([join(cwd, 'package.json')])
         expect(config.dependencies.map(item => item.name)).toContain('lodash')
         expect(config.devDependencies.map(item => item.name)).toContain('@types/lodash')
+        expect(config.workspaceFilePath).toBe('')
+        expect(config.workspaceConfig).toEqual({})
+        expect(config.yarnConfigPath).toBe('')
+        expect(config.yarnConfig).toEqual({})
     })
 
     test('resolves a monorepo from workspace config', async () => {
@@ -34,6 +49,7 @@ describe('resolveConfig', () => {
                     rootdep: '^1.0.0',
                 },
             })
+            await writeText(join(directory, 'pnpm-lock.yaml'), 'lockfileVersion: "9.0"\n')
             await writeText(join(directory, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n')
             await writeJson(join(directory, 'packages/foo/package.json'), {
                 name: 'foo',
@@ -48,9 +64,10 @@ describe('resolveConfig', () => {
                 },
             })
 
-            const config = await resolveConfig(join(directory, 'packages/foo'))
+            const config = await resolveConfig(createArgs(join(directory, 'packages/foo')))
 
             expect(config.monorepo).toBe(true)
+            expect(config.packageManagement).toBe('pnpm')
             expect(config.packages).toEqual([
                 join(directory, 'package.json'),
                 join(directory, 'packages/bar/package.json'),
@@ -66,8 +83,9 @@ describe('resolveConfig', () => {
 
     test('collects pnpm catalog and catalogs entries', async () => {
         const cwd = join(fixturesDir, 'pnpm-catalog')
-        const config = await resolveConfig(cwd)
+        const config = await resolveConfig(createArgs(cwd))
 
+        expect(config.packageManagement).toBe('pnpm')
         expect(config.catalogDependencies).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 name: 'react',
@@ -85,8 +103,9 @@ describe('resolveConfig', () => {
 
     test('collects yarn catalog entries from .yarnrc.yml', async () => {
         const cwd = join(fixturesDir, 'yarn-catalog')
-        const config = await resolveConfig(cwd)
+        const config = await resolveConfig(createArgs(cwd))
 
+        expect(config.packageManagement).toBe('yarn')
         expect(config.catalogDependencies).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 name: 'react',
@@ -98,8 +117,9 @@ describe('resolveConfig', () => {
 
     test('collects bun workspaces catalog entries from package.json', async () => {
         const cwd = join(fixturesDir, 'bun-catalog')
-        const config = await resolveConfig(cwd)
+        const config = await resolveConfig(createArgs(cwd))
 
+        expect(config.packageManagement).toBe('bun')
         expect(config.catalogDependencies).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 name: 'react',
@@ -117,10 +137,13 @@ describe('resolveConfig', () => {
 
     test('supports package.yaml manifests', async () => {
         const cwd = join(fixturesDir, 'package-yaml')
-        const config = await resolveConfig(cwd)
+        const config = await resolveConfig(createArgs(cwd))
 
         expect(config.packages).toEqual([join(cwd, 'package.yaml')])
+        expect(config.packageManagement).toBe('pnpm')
+        expect(config.packageManager).toBe('pnpm@10.19.0')
         expect(config.dependencies.map(item => item.name)).toContain('react')
+        expect(config.peerDependencies.map(item => item.name)).toContain('react-dom')
         expect(config.optionalDependencies.map(item => item.name)).toContain('multer')
     })
 
@@ -131,7 +154,7 @@ describe('resolveConfig', () => {
         try {
             await writeText(manifestPath, 'name: demo\ndependencies:\n  react: ^18.2.0\n')
 
-            const config = await resolveConfig(directory)
+            const config = await resolveConfig(createArgs(directory))
 
             expect(config.packages).toEqual([manifestPath])
             expect(config.dependencies.map(item => item.name)).toContain('react')
@@ -141,7 +164,7 @@ describe('resolveConfig', () => {
         }
     })
 
-    test('does not hijack standalone packages outside workspace patterns', async () => {
+    test('treats a package under a pnpm workspace ancestor as part of the monorepo', async () => {
         const directory = await createTempDir('bumpkg-config-standalone')
         const standalonePath = join(directory, 'docs/package.json')
 
@@ -150,6 +173,7 @@ describe('resolveConfig', () => {
                 name: 'root',
                 private: true,
             })
+            await writeText(join(directory, 'pnpm-lock.yaml'), 'lockfileVersion: "9.0"\n')
             await writeText(join(directory, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n')
             await writeJson(join(directory, 'packages/app/package.json'), {
                 name: 'app',
@@ -164,11 +188,15 @@ describe('resolveConfig', () => {
                 },
             })
 
-            const config = await resolveConfig(join(directory, 'docs'))
+            const config = await resolveConfig(createArgs(join(directory, 'docs')))
 
-            expect(config.rootPackagePath).toBe(standalonePath)
-            expect(config.monorepo).toBe(false)
-            expect(config.packages).toEqual([standalonePath])
+            expect(config.rootPackagePath).toBe(join(directory, 'package.json'))
+            expect(config.monorepo).toBe(true)
+            expect(config.packages).toEqual([
+                join(directory, 'docs/package.json'),
+                join(directory, 'package.json'),
+                join(directory, 'packages/app/package.json'),
+            ])
         }
         finally {
             await removeTempDir(directory)
@@ -179,7 +207,7 @@ describe('resolveConfig', () => {
         const directory = await createTempDir('bumpkg-config-empty')
 
         try {
-            await expect(resolveConfig(directory)).rejects.toThrow(/Unable to locate package manifest/)
+            await expect(resolveConfig(createArgs(directory))).rejects.toThrow(/Unable to locate package manifest/)
         }
         finally {
             await removeTempDir(directory)
@@ -199,7 +227,7 @@ describe('resolveConfig', () => {
 
             const fetchSpy = vi.mocked(ofetch)
 
-            const config = await resolveConfig(directory)
+            const config = await resolveConfig(createArgs(directory))
 
             expect(config.rootDir).toBe(directory)
             expect(fetchSpy).not.toHaveBeenCalled()

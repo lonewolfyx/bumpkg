@@ -6,6 +6,7 @@ export const DEFAULT_REGISTRY_URL = 'https://registry.npmjs.org/'
 export const DEPENDENCY_FIELDS = [
     'dependencies',
     'devDependencies',
+    'peerDependencies',
     'optionalDependencies',
 ] as const satisfies readonly DependencyType[]
 
@@ -17,6 +18,7 @@ export const LOCK_FILE_NAMES = [
     'package-lock.json',
     'pnpm-lock.yaml',
     'yarn.lock',
+    'bun.lock',
     'bun.lockb',
 ] as const
 
@@ -31,7 +33,7 @@ export const CLI_CATALOG_TABLE_HEADERS = [
     'catalogName',
 ] as const
 
-export const PACKAGE_MANIFEST_NAMES = ['package.json', 'package.yaml', 'package.yml'] as const
+export const PACKAGE_MANIFEST_GLOB = 'package.{json,yaml,yml}'
 
 export const YAML_FILE_EXTENSIONS = ['.yaml', '.yml'] as const
 

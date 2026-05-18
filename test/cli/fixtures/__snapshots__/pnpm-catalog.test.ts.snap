@@ -100,6 +100,7 @@ webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies   
   ],
   "fixtureEntryPath": "/test/fixtures/pnpm-catalog/package.json",
   "removedLocks": {
+    "bun.lock": true,
     "bun.lockb": true,
     "package-lock.json": true,
     "pnpm-lock.yaml": true,
@@ -118,7 +119,7 @@ react-dom       | ^18.2.0        | ^18.3.1                     | catalog        
 react-dom       | ^18.2.0        | ^18.3.1                     | catalogs        | react18    
 webpack         | ~1.9.10        | ~1.12.0 (5.101.5 available) | dependencies    | -          ",
     "Updated 9 dependencies across 2 files.",
-    "No supported lock files found.",
+    "Removed lock files: <fixtureRoot>/pnpm-lock.yaml",
   ],
   "trackedFiles": {
     "package.json": "{
