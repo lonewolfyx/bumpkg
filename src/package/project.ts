@@ -3,10 +3,10 @@ import { dirname } from 'node:path'
 import { findUp } from 'find-up'
 import { glob } from 'glob'
 import { PACKAGE_MANIFEST_GLOB } from '@/constant.ts'
+import { readYamlConfig } from '@/utils.ts'
 import { getPackageManagement } from './manager'
 import { readProjectManifest } from './manifest'
 import { getManifestWorkspacePatterns } from './workspace'
-import { readYarnConfig } from './yarn'
 
 function hasWorkspacePackages(workspaceConfig: WorkspaceConfig): boolean {
     return (workspaceConfig.packages?.length ?? 0) > 0
@@ -43,7 +43,7 @@ export async function resolvePackageContext(cwd: string): Promise<PackageContext
         })
 
         if (pnpmWorkspacePath) {
-            const pnpmWorkspaceConfig = await readYarnConfig(pnpmWorkspacePath)
+            const pnpmWorkspaceConfig = await readYamlConfig(pnpmWorkspacePath)
 
             if (hasWorkspacePackages(pnpmWorkspaceConfig)) {
                 workspaceFilePath = pnpmWorkspacePath
@@ -74,7 +74,7 @@ export async function resolvePackageContext(cwd: string): Promise<PackageContext
             cwd,
             type: 'file',
         }) ?? ''
-        yarnConfig = yarnConfigPath ? await readYarnConfig(yarnConfigPath) : {}
+        yarnConfig = yarnConfigPath ? await readYamlConfig(yarnConfigPath) : {}
     }
 
     if (packageManagement === 'bun' && !workspaceFilePath) {
