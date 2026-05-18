@@ -1,5 +1,5 @@
 import type { CommandArgs, UpdateCandidate } from './types'
-import { confirm, isCancel, note } from '@clack/prompts'
+import { confirm, isCancel, log, note } from '@clack/prompts'
 import { checkUpdateDependencies } from './check'
 import { resolveConfig } from './config'
 import { CLI_BASE_TABLE_HEADERS, CLI_CATALOG_TABLE_HEADERS } from './constant'
@@ -76,20 +76,20 @@ export async function runCliWithOptions(
     const checkResult = await checkUpdateDependencies(config, options)
 
     if (checkResult.errors.length > 0) {
-        console.error(`Failed to check ${checkResult.errors.length} dependencies.`)
+        log.warning(`Failed to check ${checkResult.errors.length} dependencies.`)
 
         for (const error of checkResult.errors.slice(0, 5))
-            console.error(`${error.name}: ${error.reason}`)
+            log.warning(`${error.name}: ${error.reason}`)
 
         if (checkResult.errors.length > 5)
-            console.error(`...and ${checkResult.errors.length - 5} more errors.`)
+            log.warning(`...and ${checkResult.errors.length - 5} more errors.`)
     }
 
     if (checkResult.candidates.length === 0) {
         if (checkResult.errors.length > 0)
             return
 
-        console.log('No updatable dependencies found.')
+        log.success('No updatable dependencies found.')
         return
     }
 
@@ -104,7 +104,7 @@ export async function runCliWithOptions(
     })
     const confirmed = !isCancel(confirmedResult) && Boolean(confirmedResult)
     if (!confirmed) {
-        console.log('Update cancelled.')
+        log.error('Update cancelled.')
         return
     }
 
@@ -113,15 +113,15 @@ export async function runCliWithOptions(
     })
     const cleanupResult = await cleanupLockFiles(config.rootDir)
 
-    console.log(`Updated ${updateResult.updatedCount} dependencies across ${updateResult.updatedFiles.length} files.`)
+    log.success(`Updated ${updateResult.updatedCount} dependencies across ${updateResult.updatedFiles.length} files.`)
 
     if (cleanupResult.removed.length > 0)
-        console.log(`Removed lock files: ${cleanupResult.removed.join(', ')}`)
+        log.success(`Removed lock files: ${cleanupResult.removed.join(', ')}`)
     else if (cleanupResult.failed.length === 0)
-        console.log('No supported lock files found.')
+        log.info('No supported lock files found.')
 
     if (cleanupResult.failed.length > 0) {
         for (const failure of cleanupResult.failed)
-            console.error(`Failed to remove lock file ${failure.filePath}: ${failure.reason}`)
+            log.warning(`Failed to remove lock file ${failure.filePath}: ${failure.reason}`)
     }
 }
