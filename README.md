@@ -6,7 +6,7 @@
 
 Core capabilities:
 
-- Supports `dependencies`, `devDependencies`, `peerDependencies`, and `optionalDependencies`
+- Supports `dependencies`, `devDependencies`, and `optionalDependencies`
 - Works with both single-package projects and monorepos
 - Supports `package.json`, `package.yaml`, and `package.yml`
 - Supports `npm`, `pnpm`, `yarn`, and `bun` project environments
