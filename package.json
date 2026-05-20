@@ -55,6 +55,7 @@
     "dependencies": {
         "@clack/prompts": "^1.0.0",
         "citty": "^0.2.0",
+        "console-table-printer": "^2.15.0",
         "defu": "^6.1.4",
         "find-up": "^8.0.0",
         "glob": "^13.0.1",

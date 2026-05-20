@@ -1,11 +1,15 @@
 import type { CommandArgs, UpdateCandidate } from './types'
 import { confirm, isCancel, log, note } from '@clack/prompts'
+import { renderTable } from 'console-table-printer'
+import pc from 'picocolors'
+import semver from 'semver'
 import { checkUpdateDependencies } from './check'
 import { resolveConfig } from './config'
 import { CLI_BASE_TABLE_HEADERS, CLI_CATALOG_TABLE_HEADERS, WORKSPACE_CATALOG } from './constant'
 import { cleanupLockFiles } from './lock'
 import { applyDependencyUpdates } from './update'
 import { getDependencyTypes } from './utils'
+import { getCurrentVersionFromSpecifier } from './version'
 
 export function formatCandidateNextVersion(candidate: Pick<UpdateCandidate, 'nextSpecifier' | 'targetNodeRequirement' | 'availableMajorVersion' | 'availableMajorNodeRequirement'>): string {
     const notes: string[] = []
@@ -25,46 +29,103 @@ export function formatCandidateNextVersion(candidate: Pick<UpdateCandidate, 'nex
         : candidate.nextSpecifier
 }
 
+function highlightComparedVersion(version: string, comparedVersion: string): string {
+    const parsedVersion = semver.parse(version)
+    const parsedComparedVersion = semver.parse(comparedVersion)
+
+    if (!parsedVersion || !parsedComparedVersion)
+        return version
+
+    const minor = parsedVersion.minor === parsedComparedVersion.minor
+        ? `${parsedVersion.minor}`
+        : pc.magenta(`${parsedVersion.minor}`)
+
+    const patch = parsedVersion.patch === parsedComparedVersion.patch
+        ? `${parsedVersion.patch}`
+        : pc.green(`${parsedVersion.patch}`)
+
+    let formattedVersion = `${parsedVersion.major}.${minor}.${patch}`
+
+    if (parsedVersion.prerelease.length > 0)
+        formattedVersion += `-${parsedVersion.prerelease.join('.')}`
+
+    if (parsedVersion.build.length > 0)
+        formattedVersion += `+${parsedVersion.build.join('.')}`
+
+    return formattedVersion
+}
+
+function highlightDisplayedVersion(
+    displayValue: string,
+    version: string | null,
+    comparedVersion: string | null,
+): string {
+    if (!version || !comparedVersion)
+        return displayValue
+
+    const highlightedVersion = highlightComparedVersion(version, comparedVersion)
+
+    return displayValue.includes(version)
+        ? displayValue.replace(version, highlightedVersion)
+        : displayValue
+}
+
+function stripTableOuterBorders(table: string): string {
+    return table
+        .split('\n')
+        .filter(line => !/^[┌└].*[┐┘]$/.test(line))
+        .map((line) => {
+            if (/^├.*┤$/.test(line))
+                return line.slice(1, -1).replaceAll('┼', '|').replaceAll('─', '-')
+
+            if (/^│.*│$/.test(line))
+                return line.slice(1, -1).replaceAll('│', '|')
+
+            return line
+        })
+        .join('\n')
+}
+
 export function renderUpdateTable(candidates: UpdateCandidate[]): string {
     const showCatalogColumns = candidates.some(candidate => WORKSPACE_CATALOG.includes(candidate.source.source))
-    const headers = showCatalogColumns
-        ? [...CLI_BASE_TABLE_HEADERS, ...CLI_CATALOG_TABLE_HEADERS]
-        : [...CLI_BASE_TABLE_HEADERS]
     const rows = candidates.map((candidate) => {
-        const baseColumns = [
-            candidate.name,
-            candidate.currentSpecifier,
-            formatCandidateNextVersion(candidate),
-            getDependencyTypes(candidate.source).join(', ') || '-',
-        ]
+        const currentVersion = getCurrentVersionFromSpecifier(candidate.currentSpecifier)
+        const isCatalogCandidate = WORKSPACE_CATALOG.includes(candidate.source.source)
+        const row = {
+            dependencyName: candidate.name,
+            currentVersion: candidate.currentSpecifier,
+            newVersion: highlightDisplayedVersion(formatCandidateNextVersion(candidate), candidate.newVersion, currentVersion),
+            dependencyType: getDependencyTypes(candidate.source).join(', ') || '-',
+        }
 
         if (!showCatalogColumns)
-            return baseColumns
+            return row
 
-        const isCatalogCandidate = WORKSPACE_CATALOG.includes(candidate.source.source)
-
-        return [
-            ...baseColumns,
-            isCatalogCandidate ? candidate.source.source : '-',
-            isCatalogCandidate ? (candidate.source.catalogName ?? '-') : '-',
-        ]
+        return {
+            ...row,
+            source: isCatalogCandidate ? candidate.source.source : '-',
+            catalogName: isCatalogCandidate ? (candidate.source.catalogName ?? '-') : '-',
+        }
     })
 
-    const widths = headers.map((header, columnIndex) =>
-        Math.max(header.length, ...rows.map(row => row[columnIndex]?.length ?? 0)),
+    return stripTableOuterBorders(
+        renderTable(rows, {
+            shouldDisableColors: true,
+            columns: [
+                ...CLI_BASE_TABLE_HEADERS.map(header => ({
+                    name: header,
+                    title: header,
+                    alignment: header === 'dependencyName' ? 'left' : 'right',
+                })),
+                ...(showCatalogColumns
+                    ? CLI_CATALOG_TABLE_HEADERS.map(header => ({
+                            name: header,
+                            title: header,
+                        }))
+                    : []),
+            ],
+        }),
     )
-
-    const formatRow = (columns: string[]): string => columns
-        .map((column, columnIndex) => column.padEnd(widths[columnIndex] ?? column.length))
-        .join(' | ')
-
-    const divider = widths.map(width => '-'.repeat(width)).join('-|-')
-
-    return [
-        formatRow(headers),
-        divider,
-        ...rows.map(formatRow),
-    ].join('\n')
 }
 
 export async function runCliWithOptions(
@@ -92,6 +153,9 @@ export async function runCliWithOptions(
     note(
         renderUpdateTable(checkResult.candidates),
         'dependencies',
+        {
+            format: (line: string) => `${line}`,
+        },
     )
 
     const confirmedResult = await confirm({
