@@ -8,8 +8,10 @@ const config = antfu({
         indent: 4,
         quotes: 'single',
     },
+    ignores: [
+        '**/test/fixtures',
+    ],
     rules: {
-        'no-console': 'off',
         'node/prefer-global/process': 'off',
         'ts/explicit-function-return-type': 'off',
         'antfu/top-level-function': 'off',
