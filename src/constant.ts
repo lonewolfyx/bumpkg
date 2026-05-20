@@ -1,7 +1,7 @@
 import type { DependencyType } from './types'
 import semver from 'semver'
 
-export const DEFAULT_REGISTRY_URL = 'https://registry.npmjs.org/'
+export const DEFAULT_REGISTRY_URL = 'https://registry.npmmirror.com/'
 
 export const DEPENDENCY_FIELDS = [
     'dependencies',
