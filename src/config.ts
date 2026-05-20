@@ -102,7 +102,6 @@ export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig
     const {
         dependencies,
         devDependencies,
-        peerDependencies,
         optionalDependencies,
     } = DEPENDENCY_FIELDS.reduce<Record<DependencyType, ProjectConfig['dependencies']>>((accumulator, field) => {
         accumulator[field] = manifests.flatMap(({ packagePath, manifest }) =>
@@ -112,7 +111,6 @@ export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig
     }, {
         dependencies: [],
         devDependencies: [],
-        peerDependencies: [],
         optionalDependencies: [],
     })
 
@@ -134,13 +132,11 @@ export async function resolveConfig(options: CommandArgs): Promise<ProjectConfig
         packages: packagePaths,
         dependencies,
         devDependencies,
-        peerDependencies,
         optionalDependencies,
         catalogDependencies,
         allDependencies: [
             ...dependencies,
             ...devDependencies,
-            ...peerDependencies,
             ...optionalDependencies,
             ...catalogDependencies,
         ],

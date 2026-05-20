@@ -188,7 +188,6 @@ catalogs:
         expect(config.packageManagement).toBe('pnpm')
         expect(config.packageManager).toBe('pnpm@10.19.0')
         expect(config.dependencies.map(item => item.name)).toContain('react')
-        expect(config.peerDependencies.map(item => item.name)).toContain('react-dom')
         expect(config.optionalDependencies.map(item => item.name)).toContain('multer')
     })
 

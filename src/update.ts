@@ -1,12 +1,14 @@
 import type {
     ApplyUpdatesOptions,
     ApplyUpdatesResult,
+    DependencyType,
     PackageManifest,
     UpdateCandidate,
     UpdatedFileResult,
     WorkspaceConfig,
 } from './types'
 import { readFile, writeFile } from 'node:fs/promises'
+import { DEPENDENCY_FIELDS } from '@/constant.ts'
 import { isYamlManifestPath, readProjectManifest, writeProjectManifest } from './package/manifest'
 import { isWildcardSpecifier } from './utils'
 
@@ -42,16 +44,15 @@ function applyManifestDependencyUpdates(
     const updatedDependencies: string[] = []
 
     for (const candidate of candidates) {
-        if (
-            candidate.source.source === 'dependencies'
-            || candidate.source.source === 'devDependencies'
-            || candidate.source.source === 'peerDependencies'
-            || candidate.source.source === 'optionalDependencies'
-        ) {
-            manifest[candidate.source.source] ??= {}
-            manifest[candidate.source.source]![candidate.name] = candidate.nextSpecifier
-            updatedDependencies.push(candidate.name)
+        const source = candidate.source.source as DependencyType
+
+        if (!DEPENDENCY_FIELDS.includes(source)) {
+            continue
         }
+
+        manifest[source] ??= {}
+        manifest[source]![candidate.name] = candidate.nextSpecifier
+        updatedDependencies.push(candidate.name)
     }
 
     return updatedDependencies
@@ -146,10 +147,7 @@ async function applyYamlManifestUpdates(
             ? `${candidate.source.catalogName}:${candidate.name}`
             : candidate.name
         const sectionPaths
-            = candidate.source.source === 'dependencies'
-                || candidate.source.source === 'devDependencies'
-                || candidate.source.source === 'peerDependencies'
-                || candidate.source.source === 'optionalDependencies'
+            = DEPENDENCY_FIELDS.includes(candidate.source.source as DependencyType)
                 ? [[candidate.source.source]]
                 : candidate.source.source === 'catalog'
                     ? [['catalog'], ['workspaces', 'catalog']]

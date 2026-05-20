@@ -1,4 +1,3 @@
-import type { DependencyType } from './types'
 import semver from 'semver'
 
 export const DEFAULT_REGISTRY_URL = 'https://registry.npmmirror.com/'
@@ -6,9 +5,8 @@ export const DEFAULT_REGISTRY_URL = 'https://registry.npmmirror.com/'
 export const DEPENDENCY_FIELDS = [
     'dependencies',
     'devDependencies',
-    'peerDependencies',
     'optionalDependencies',
-] as const satisfies readonly DependencyType[]
+] as const
 
 export const SUPPORTED_VERSION_PREFIXES = ['^', '~', '*'] as const
 

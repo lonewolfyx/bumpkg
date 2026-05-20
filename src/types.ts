@@ -8,7 +8,7 @@ export type CommandArgs = ParsedArgs<DeepWriteable<typeof import('./args').args>
 
 export type ManifestFormat = 'json' | 'yaml'
 
-export type DependencyType = 'dependencies' | 'devDependencies' | 'peerDependencies' | 'optionalDependencies'
+export type DependencyType = 'dependencies' | 'devDependencies' | 'optionalDependencies'
 
 export type CatalogDependencyType = 'catalog' | 'catalogs'
 
@@ -26,7 +26,6 @@ export interface PackageManifest {
     workspaces?: string[] | WorkspaceConfig
     dependencies?: Record<string, string>
     devDependencies?: Record<string, string>
-    peerDependencies?: Record<string, string>
     optionalDependencies?: Record<string, string>
 }
 
@@ -59,7 +58,6 @@ export interface ProjectConfig {
     packages: string[]
     dependencies: DependencyEntry[]
     devDependencies: DependencyEntry[]
-    peerDependencies: DependencyEntry[]
     optionalDependencies: DependencyEntry[]
     catalogDependencies: DependencyEntry[]
     allDependencies: DependencyEntry[]
