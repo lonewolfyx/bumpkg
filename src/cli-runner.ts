@@ -25,7 +25,7 @@ export function formatCandidateNextVersion(candidate: Pick<UpdateCandidate, 'nex
     }
 
     return notes.length > 0
-        ? `${candidate.nextSpecifier} (${notes.join('; ')})`
+        ? `${candidate.nextSpecifier} ${pc.gray(`(${notes.join('; ')})`)}`
         : candidate.nextSpecifier
 }
 
