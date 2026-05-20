@@ -78,11 +78,9 @@ export async function runCliWithOptions(
     if (checkResult.errors.length > 0) {
         log.warning(`Failed to check ${checkResult.errors.length} dependencies.`)
 
-        for (const error of checkResult.errors.slice(0, 5))
+        for (const error of checkResult.errors) {
             log.warning(`${error.name}: ${error.reason}`)
-
-        if (checkResult.errors.length > 5)
-            log.warning(`...and ${checkResult.errors.length - 5} more errors.`)
+        }
     }
 
     if (checkResult.candidates.length === 0) {
