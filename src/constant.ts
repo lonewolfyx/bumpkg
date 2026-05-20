@@ -8,6 +8,8 @@ export const DEPENDENCY_FIELDS = [
     'optionalDependencies',
 ] as const
 
+export const WORKSPACE_CATALOG = ['catalog', 'catalogs']
+
 export const SUPPORTED_VERSION_PREFIXES = ['^', '~', '*'] as const
 
 export const SKIPPED_RANGE_PREFIXES = ['<=', '>=', '<', '>'] as const

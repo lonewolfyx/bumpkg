@@ -8,7 +8,7 @@ import type {
     WorkspaceConfig,
 } from './types'
 import { readFile, writeFile } from 'node:fs/promises'
-import { DEPENDENCY_FIELDS } from '@/constant.ts'
+import { DEPENDENCY_FIELDS, WORKSPACE_CATALOG } from '@/constant.ts'
 import { isYamlManifestPath, readProjectManifest, writeProjectManifest } from './package/manifest'
 import { isWildcardSpecifier } from './utils'
 
@@ -181,7 +181,7 @@ export async function applyUpdatesToFile(
         }
     }
 
-    const catalogCandidates = candidates.filter(candidate => candidate.source.source === 'catalog' || candidate.source.source === 'catalogs')
+    const catalogCandidates = candidates.filter(candidate => WORKSPACE_CATALOG.includes(candidate.source.source))
     const manifest = await readProjectManifest(filePath)
     const updatedDependencies = applyManifestDependencyUpdates(manifest, candidates)
 

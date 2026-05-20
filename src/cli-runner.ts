@@ -2,7 +2,7 @@ import type { CommandArgs, UpdateCandidate } from './types'
 import { confirm, isCancel, log, note } from '@clack/prompts'
 import { checkUpdateDependencies } from './check'
 import { resolveConfig } from './config'
-import { CLI_BASE_TABLE_HEADERS, CLI_CATALOG_TABLE_HEADERS } from './constant'
+import { CLI_BASE_TABLE_HEADERS, CLI_CATALOG_TABLE_HEADERS, WORKSPACE_CATALOG } from './constant'
 import { cleanupLockFiles } from './lock'
 import { applyDependencyUpdates } from './update'
 import { getDependencyTypes } from './utils'
@@ -26,9 +26,7 @@ export function formatCandidateNextVersion(candidate: Pick<UpdateCandidate, 'nex
 }
 
 export function renderUpdateTable(candidates: UpdateCandidate[]): string {
-    const showCatalogColumns = candidates.some(candidate =>
-        candidate.source.source === 'catalog' || candidate.source.source === 'catalogs',
-    )
+    const showCatalogColumns = candidates.some(candidate => WORKSPACE_CATALOG.includes(candidate.source.source))
     const headers = showCatalogColumns
         ? [...CLI_BASE_TABLE_HEADERS, ...CLI_CATALOG_TABLE_HEADERS]
         : [...CLI_BASE_TABLE_HEADERS]
@@ -43,7 +41,7 @@ export function renderUpdateTable(candidates: UpdateCandidate[]): string {
         if (!showCatalogColumns)
             return baseColumns
 
-        const isCatalogCandidate = candidate.source.source === 'catalog' || candidate.source.source === 'catalogs'
+        const isCatalogCandidate = WORKSPACE_CATALOG.includes(candidate.source.source)
 
         return [
             ...baseColumns,
